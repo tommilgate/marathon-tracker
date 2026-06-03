@@ -5,9 +5,12 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { materials, TIER_ORDER, TIER_COLORS, TIER_BG, type Tier } from '@/lib/materials'
 import { useTracker, getSavedUser, clearUser } from '@/lib/store'
+import { getUserPins, pinMaterial, unpinMaterial } from '@/lib/supabase'
 import UsernameGate from './UsernameGate'
 import dynamic from 'next/dynamic'
 const VaultMode = dynamic(() => import('./VaultMode'), { ssr: false })
+
+const MAX_PINS = 3
 
 const TIER_LABELS: Record<Tier, string> = {
   prestige: 'Prestige',
@@ -33,6 +36,23 @@ export default function TrackerClient() {
   const [filterTier, setFilterTier] = useState<Tier | 'all'>('all')
   const [hideComplete, setHideComplete] = useState(false)
   const [vaultMode, setVaultMode] = useState(false)
+  const [pins, setPins] = useState<string[]>([])
+
+  useEffect(() => {
+    if (user?.id) getUserPins(user.id).then(setPins).catch(() => {})
+  }, [user?.id])
+
+  async function togglePin(materialId: string) {
+    if (!user) return
+    if (pins.includes(materialId)) {
+      await unpinMaterial(user.id, materialId)
+      setPins(p => p.filter(id => id !== materialId))
+    } else {
+      if (pins.length >= MAX_PINS) return
+      await pinMaterial(user.id, materialId)
+      setPins(p => [...p, materialId])
+    }
+  }
 
   if (!hydrated) return null
 
@@ -180,24 +200,38 @@ export default function TrackerClient() {
                     >
                       {/* Name */}
                       <td className="px-4 py-3">
-                        <Link
-                          href={`/materials/${m.id}`}
-                          className="flex items-center gap-3 hover:text-[#b8ff00] transition-colors font-medium"
-                        >
-                          {m.image && (
-                            <Image
-                              src={m.image}
-                              alt={m.name}
-                              width={64}
-                              height={64}
-                              className="rounded shrink-0 object-contain bg-gray-800"
-                            />
-                          )}
-                          <span>{m.name}</span>
-                          {isComplete && (
-                            <span className="text-xs text-green-500">✓</span>
-                          )}
-                        </Link>
+                        <div className="flex items-center gap-2">
+                          <Link
+                            href={`/materials/${m.id}`}
+                            className="flex items-center gap-3 hover:text-[#b8ff00] transition-colors font-medium flex-1 min-w-0"
+                          >
+                            {m.image && (
+                              <Image
+                                src={m.image}
+                                alt={m.name}
+                                width={64}
+                                height={64}
+                                className="rounded shrink-0 object-contain bg-gray-800"
+                              />
+                            )}
+                            <span>{m.name}</span>
+                            {isComplete && (
+                              <span className="text-xs text-green-500">✓</span>
+                            )}
+                          </Link>
+                          <button
+                            onClick={() => togglePin(m.id)}
+                            disabled={!pins.includes(m.id) && pins.length >= MAX_PINS}
+                            title={pins.includes(m.id) ? 'Unpin' : pins.length >= MAX_PINS ? 'Max 3 pins' : 'Pin — show others you\'re hunting this'}
+                            className={`shrink-0 text-base transition-colors disabled:opacity-20 ${
+                              pins.includes(m.id)
+                                ? 'text-[#b8ff00]'
+                                : 'text-gray-700 hover:text-gray-400'
+                            }`}
+                          >
+                            📍
+                          </button>
+                        </div>
                       </td>
 
                       {/* Need */}

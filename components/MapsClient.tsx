@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { materials, TIER_ORDER, TIER_COLORS, TIER_BG, type Tier, type Material } from '@/lib/materials'
 import { useTracker, getSavedUser } from '@/lib/store'
 import { factions } from '@/lib/factions'
+import HuntingBoard from './HuntingBoard'
 
 const TIER_LABELS: Record<Tier, string> = {
   prestige: 'Prestige',
@@ -129,6 +130,8 @@ export default function MapsClient() {
         <h1 className="text-lg font-bold text-white tracking-wide">Maps</h1>
         <p className="text-xs text-gray-500 mt-1">Only showing materials you still need</p>
       </div>
+
+      <HuntingBoard />
 
       {/* Map selector */}
       <div className="flex flex-wrap gap-2 mb-5">

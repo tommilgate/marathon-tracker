@@ -52,6 +52,57 @@ export async function loadEntries(userId: string): Promise<DbEntry[]> {
   return data ?? []
 }
 
+// ---------------------------------------------------------------------------
+// Pinned materials
+// ---------------------------------------------------------------------------
+
+export interface PinnedMaterial {
+  material_id: string
+  user_id: string
+  username: string
+}
+
+export async function getAllPins(): Promise<PinnedMaterial[]> {
+  const { data, error } = await supabase
+    .from('pinned_materials')
+    .select('material_id, user_id, users(username)')
+    .order('created_at', { ascending: true })
+
+  if (error) throw error
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).map((row: any) => ({
+    material_id: row.material_id as string,
+    user_id: row.user_id as string,
+    username: (Array.isArray(row.users) ? row.users[0]?.username : row.users?.username) ?? 'unknown',
+  }))
+}
+
+export async function getUserPins(userId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('pinned_materials')
+    .select('material_id')
+    .eq('user_id', userId)
+
+  if (error) throw error
+  return (data ?? []).map(r => r.material_id)
+}
+
+export async function pinMaterial(userId: string, materialId: string): Promise<void> {
+  const { error } = await supabase
+    .from('pinned_materials')
+    .insert({ user_id: userId, material_id: materialId })
+  if (error) throw error
+}
+
+export async function unpinMaterial(userId: string, materialId: string): Promise<void> {
+  const { error } = await supabase
+    .from('pinned_materials')
+    .delete()
+    .eq('user_id', userId)
+    .eq('material_id', materialId)
+  if (error) throw error
+}
+
 export async function upsertEntry(
   userId: string,
   materialId: string,
