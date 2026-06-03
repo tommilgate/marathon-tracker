@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { materials, TIER_ORDER, TIER_COLORS, TIER_BG, type Tier } from '@/lib/materials'
 import { useTracker, getSavedUser, clearUser } from '@/lib/store'
 import UsernameGate from './UsernameGate'
+import dynamic from 'next/dynamic'
+const VaultMode = dynamic(() => import('./VaultMode'), { ssr: false })
 
 const TIER_LABELS: Record<Tier, string> = {
   prestige: 'Prestige',
@@ -30,6 +32,7 @@ export default function TrackerClient() {
   const [editingHave, setEditingHave] = useState<string | null>(null)
   const [filterTier, setFilterTier] = useState<Tier | 'all'>('all')
   const [hideComplete, setHideComplete] = useState(false)
+  const [vaultMode, setVaultMode] = useState(false)
 
   if (!hydrated) return null
 
@@ -63,6 +66,30 @@ export default function TrackerClient() {
 
   return (
     <div>
+      {/* Vault mode full view */}
+      {vaultMode && (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <div className="flex items-center gap-3">
+                <h1 className="text-lg font-bold text-white tracking-wide">Vault Mode</h1>
+                <span className="text-xs text-gray-600">—</span>
+                <span className="text-xs text-[#b8ff00]">{user.username}</span>
+              </div>
+            </div>
+            <button
+              onClick={() => setVaultMode(false)}
+              className="px-3 py-1.5 text-xs border border-gray-700 text-gray-400 rounded hover:border-gray-500 hover:text-white transition-colors"
+            >
+              ← List View
+            </button>
+          </div>
+          <VaultMode userId={user.id} />
+        </div>
+      )}
+
+      {!vaultMode && <>
+
       {/* Header stats */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -84,6 +111,12 @@ export default function TrackerClient() {
           )}
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setVaultMode(true)}
+            className="px-3 py-1.5 text-xs border border-[#b8ff00]/40 text-[#b8ff00] rounded hover:bg-[#b8ff00]/10 transition-colors font-medium"
+          >
+            ⬡ Vault Mode
+          </button>
           <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -265,6 +298,7 @@ export default function TrackerClient() {
           </tbody>
         </table>
       </div>
+      </>}
     </div>
   )
 }
