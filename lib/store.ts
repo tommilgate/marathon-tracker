@@ -76,5 +76,16 @@ export function useTracker(userId: string | null) {
     persist(id, next)
   }
 
-  return { getState, setNeed, adjustHave, setHave, store, loading }
+  // Atomic spend: deducts from both have AND need in one update
+  function spend(id: string, amount: number) {
+    const cur = getState(id)
+    const next = {
+      have: Math.max(0, cur.have - amount),
+      need: Math.max(0, cur.need - amount),
+    }
+    setStore(s => ({ ...s, [id]: next }))
+    persist(id, next)
+  }
+
+  return { getState, setNeed, adjustHave, setHave, spend, store, loading }
 }
