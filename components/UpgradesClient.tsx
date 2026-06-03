@@ -6,12 +6,15 @@ import { materials, getMaterialById, type Material } from '@/lib/materials'
 import { factions } from '@/lib/factions'
 import { useTracker, getSavedUser } from '@/lib/store'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
+const UpgradesVault = dynamic(() => import('./UpgradesVault'), { ssr: false })
 
 export default function UpgradesClient() {
   const [userId, setUserId] = useState<string | null>(null)
   const [selectedFaction, setSelectedFaction] = useState<string | null>(null)
   const [spendAmounts, setSpendAmounts] = useState<Record<string, string>>({})
   const [flash, setFlash] = useState<Record<string, 'success' | 'warn'>>({})
+  const [vaultMode, setVaultMode] = useState(false)
 
   useEffect(() => {
     const u = getSavedUser()
@@ -58,10 +61,28 @@ export default function UpgradesClient() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-lg font-bold text-white tracking-wide">Upgrades</h1>
-        <p className="text-xs text-gray-500 mt-1">Spending deducts from both Have and Remaining</p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-lg font-bold text-white tracking-wide">Upgrades</h1>
+          <p className="text-xs text-gray-500 mt-1">Spending deducts from both Have and Remaining</p>
+        </div>
+        {userId && (
+          <button
+            onClick={() => setVaultMode(!vaultMode)}
+            className={`shrink-0 px-3 py-1.5 text-xs border rounded transition-colors ${
+              vaultMode
+                ? 'bg-[#b8ff00]/20 border-[#b8ff00] text-[#b8ff00]'
+                : 'border-gray-700 text-gray-400 hover:border-gray-500'
+            }`}
+          >
+            ⬡ {vaultMode ? 'Grid View' : 'List View'}
+          </button>
+        )}
       </div>
+
+      {vaultMode && userId ? (
+        <UpgradesVault userId={userId} selectedFaction={selectedFaction} />
+      ) : (
 
       {/* Faction picker */}
       <div className="flex flex-wrap gap-2 mb-8">
@@ -177,6 +198,7 @@ export default function UpgradesClient() {
             )
           })}
         </div>
+      )}
       )}
     </div>
   )

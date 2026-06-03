@@ -106,9 +106,15 @@ export default function MaxingClient() {
         )}
       </div>
 
-      {/* Progress through tiers */}
+      {/* Progress through tiers — only show current + 2 ahead */}
       <div className="flex gap-2 mb-8 flex-wrap">
         {MAXING_ORDER.map(tier => {
+          const tierIndex = MAXING_ORDER.indexOf(tier)
+          const currentIndex = MAXING_ORDER.indexOf(currentTier)
+          const shouldShow = tierIndex <= currentIndex + 2
+
+          if (!shouldShow) return null
+
           const mats = materials.filter(m => m.tier === tier && isTracked(m))
           const done = mats.filter(m => remaining(m) === 0).length
           const isCurrent = tier === currentTier

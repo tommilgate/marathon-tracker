@@ -38,6 +38,26 @@ export default function TrackerClient() {
   const [vaultMode, setVaultMode] = useState(false)
   const [pins, setPins] = useState<string[]>([])
 
+  // Restore UI state from localStorage
+  useEffect(() => {
+    if (!user?.id) return
+    const savedVault = localStorage.getItem(`marathon-vault-mode-${user.id}`)
+    const savedHideComplete = localStorage.getItem(`marathon-hide-complete-${user.id}`)
+    if (savedVault === 'true') setVaultMode(true)
+    if (savedHideComplete === 'true') setHideComplete(true)
+  }, [user?.id])
+
+  // Save UI state to localStorage
+  useEffect(() => {
+    if (!user?.id) return
+    localStorage.setItem(`marathon-vault-mode-${user.id}`, String(vaultMode))
+  }, [vaultMode, user?.id])
+
+  useEffect(() => {
+    if (!user?.id) return
+    localStorage.setItem(`marathon-hide-complete-${user.id}`, String(hideComplete))
+  }, [hideComplete, user?.id])
+
   useEffect(() => {
     if (user?.id) getUserPins(user.id).then(setPins).catch(() => {})
   }, [user?.id])
