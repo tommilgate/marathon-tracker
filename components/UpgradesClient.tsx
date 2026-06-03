@@ -83,8 +83,8 @@ export default function UpgradesClient() {
       {vaultMode && userId ? (
         <UpgradesVault userId={userId} selectedFaction={selectedFaction} />
       ) : (
-
-      {/* Faction picker */}
+        <>
+          {/* Faction picker */}
       <div className="flex flex-wrap gap-2 mb-8">
         <button
           onClick={() => setSelectedFaction(null)}
@@ -198,7 +198,8 @@ export default function UpgradesClient() {
             )
           })}
         </div>
-      )}
+          )}
+        </>
       )}
     </div>
   )
