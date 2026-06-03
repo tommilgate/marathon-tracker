@@ -96,7 +96,6 @@ function VaultItem({ material: m, have, isSelected, isEditing, onSelect, onEdit,
       ref={setNodeRef}
       style={style}
       {...attributes}
-      {...listeners}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerLeave}
@@ -110,6 +109,21 @@ function VaultItem({ material: m, have, isSelected, isEditing, onSelect, onEdit,
           <span className="text-gray-600 text-xs text-center leading-tight px-1">{m.name}</span>
         </div>
       )}
+
+      {/* Drag handle — top-left, separate from click/long-press */}
+      <div
+        {...listeners}
+        onPointerDown={e => e.stopPropagation()}
+        className="absolute top-0 left-0 w-6 h-6 flex items-center justify-center cursor-grab active:cursor-grabbing z-20 opacity-0 hover:opacity-100 transition-opacity"
+        title="Drag to reorder"
+      >
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+          <circle cx="3" cy="3" r="1.2" fill="#9ca3af"/>
+          <circle cx="7" cy="3" r="1.2" fill="#9ca3af"/>
+          <circle cx="3" cy="7" r="1.2" fill="#9ca3af"/>
+          <circle cx="7" cy="7" r="1.2" fill="#9ca3af"/>
+        </svg>
+      </div>
 
       {/* Count chip */}
       {have > 0 && !isEditing && (
