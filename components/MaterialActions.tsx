@@ -1,16 +1,27 @@
 'use client'
 
-import { useTracker } from '@/lib/store'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useTracker, getSavedUser } from '@/lib/store'
 
 export default function MaterialActions({ materialId }: { materialId: string }) {
-  const { getState, setNeed, adjustHave, setHave } = useTracker()
+  const [userId, setUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const u = getSavedUser()
+    if (u) setUserId(u.id)
+  }, [])
+
+  const { getState, setNeed, adjustHave, setHave } = useTracker(userId)
   const [editingNeed, setEditingNeed] = useState(false)
   const [editingHave, setEditingHave] = useState(false)
 
   const s = getState(materialId)
   const remaining = Math.max(0, s.need - s.have)
   const isComplete = s.need > 0 && s.have >= s.need
+
+  if (!userId) {
+    return <p className="text-xs text-gray-600">Sign in on the tracker page to save your count.</p>
+  }
 
   return (
     <div className="flex items-center gap-8">

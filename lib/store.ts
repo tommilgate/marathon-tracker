@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
+import { loadEntries, upsertEntry, type DbEntry } from './supabase'
 
 export interface MaterialState {
   need: number
@@ -9,50 +10,71 @@ export interface MaterialState {
 
 type TrackerStore = Record<string, MaterialState>
 
-const STORAGE_KEY = 'marathon-tracker'
+const USER_KEY = 'marathon-user'
 
-function load(): TrackerStore {
-  if (typeof window === 'undefined') return {}
+export function getSavedUser(): { id: string; username: string } | null {
+  if (typeof window === 'undefined') return null
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
+    const raw = localStorage.getItem(USER_KEY)
+    return raw ? JSON.parse(raw) : null
   } catch {
-    return {}
+    return null
   }
 }
 
-function save(store: TrackerStore) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(store))
+export function saveUser(user: { id: string; username: string }) {
+  localStorage.setItem(USER_KEY, JSON.stringify(user))
 }
 
-export function useTracker() {
-  const [store, setStore] = useState<TrackerStore>({})
+export function clearUser() {
+  localStorage.removeItem(USER_KEY)
+}
 
+export function useTracker(userId: string | null) {
+  const [store, setStore] = useState<TrackerStore>({})
+  const [loading, setLoading] = useState(true)
+
+  // Load from Supabase on mount / user change
   useEffect(() => {
-    setStore(load())
-  }, [])
+    if (!userId) { setLoading(false); return }
+    setLoading(true)
+    loadEntries(userId).then((entries: DbEntry[]) => {
+      const s: TrackerStore = {}
+      entries.forEach(e => { s[e.material_id] = { need: e.need, have: e.have } })
+      setStore(s)
+      setLoading(false)
+    }).catch(() => setLoading(false))
+  }, [userId])
 
   function getState(id: string): MaterialState {
     return store[id] ?? { need: 0, have: 0 }
   }
 
+  const persist = useCallback((id: string, next: MaterialState) => {
+    if (!userId) return
+    upsertEntry(userId, id, next.need, next.have)
+  }, [userId])
+
   function setNeed(id: string, need: number) {
-    const next = { ...store, [id]: { ...getState(id), need: Math.max(0, need) } }
-    setStore(next)
-    save(next)
+    const cur = getState(id)
+    const next = { ...cur, need: Math.max(0, need) }
+    setStore(s => ({ ...s, [id]: next }))
+    persist(id, next)
   }
 
   function adjustHave(id: string, delta: number) {
     const cur = getState(id)
-    const next = { ...store, [id]: { ...cur, have: Math.max(0, cur.have + delta) } }
-    setStore(next)
-    save(next)
+    const next = { ...cur, have: Math.max(0, cur.have + delta) }
+    setStore(s => ({ ...s, [id]: next }))
+    persist(id, next)
   }
 
   function setHave(id: string, have: number) {
-    const next = { ...store, [id]: { ...getState(id), have: Math.max(0, have) } }
-    setStore(next)
-    save(next)
+    const cur = getState(id)
+    const next = { ...cur, have: Math.max(0, have) }
+    setStore(s => ({ ...s, [id]: next }))
+    persist(id, next)
   }
 
-  return { getState, setNeed, adjustHave, setHave, store }
+  return { getState, setNeed, adjustHave, setHave, store, loading }
 }

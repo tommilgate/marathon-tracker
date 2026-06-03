@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { materials, TIER_ORDER, TIER_COLORS, TIER_BG, type Tier } from '@/lib/materials'
-import { useTracker } from '@/lib/store'
+import { useTracker, getSavedUser, clearUser } from '@/lib/store'
+import UsernameGate from './UsernameGate'
 
 const TIER_LABELS: Record<Tier, string> = {
   prestige: 'Prestige',
@@ -15,11 +16,34 @@ const TIER_LABELS: Record<Tier, string> = {
 }
 
 export default function TrackerClient() {
-  const { getState, setNeed, adjustHave, setHave } = useTracker()
+  const [user, setUser] = useState<{ id: string; username: string } | null>(null)
+  const [hydrated, setHydrated] = useState(false)
+
+  useEffect(() => {
+    const saved = getSavedUser()
+    if (saved) setUser(saved)
+    setHydrated(true)
+  }, [])
+
+  const { getState, setNeed, adjustHave, setHave, loading } = useTracker(user?.id ?? null)
   const [editingNeed, setEditingNeed] = useState<string | null>(null)
   const [editingHave, setEditingHave] = useState<string | null>(null)
   const [filterTier, setFilterTier] = useState<Tier | 'all'>('all')
   const [hideComplete, setHideComplete] = useState(false)
+
+  if (!hydrated) return null
+
+  if (!user) {
+    return <UsernameGate onUser={setUser} />
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center text-gray-500 text-sm">
+        Loading your tracker...
+      </div>
+    )
+  }
 
   const filtered = materials.filter(m => {
     if (filterTier !== 'all' && m.tier !== filterTier) return false
@@ -42,7 +66,17 @@ export default function TrackerClient() {
       {/* Header stats */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-lg font-bold text-white tracking-wide">Salvage Tracker</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-lg font-bold text-white tracking-wide">Salvage Tracker</h1>
+            <span className="text-xs text-gray-600">—</span>
+            <span className="text-xs text-[#b8ff00]">{user.username}</span>
+            <button
+              onClick={() => { clearUser(); setUser(null) }}
+              className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
+            >
+              (switch)
+            </button>
+          </div>
           {totalNeeded > 0 && (
             <p className="text-xs text-gray-500 mt-0.5">
               {totalRemaining} remaining across {materials.filter(m => getState(m.id).need > 0).length} materials
