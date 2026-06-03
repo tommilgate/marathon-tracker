@@ -7,10 +7,13 @@ import { factions } from '@/lib/factions'
 import { getMaterialById } from '@/lib/materials'
 import { useTracker, getSavedUser } from '@/lib/store'
 
+// Priority order — higher index = lower priority for shared materials
+const FACTION_PRIORITY = ['cyberacme', 'nucaloric', 'traxus', 'mida', 'arachne', 'sekiguchi']
+
 export default function FactionsClient() {
   const [userId, setUserId] = useState<string | null>(null)
-  const [confirmed, setConfirmed] = useState<string | null>(null)   // faction id being confirmed
-  const [applied, setApplied] = useState<Set<string>>(new Set())    // factions already applied this session
+  const [confirmed, setConfirmed] = useState<string | null>(null)
+  const [applied, setApplied] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     const u = getSavedUser()
@@ -29,12 +32,32 @@ export default function FactionsClient() {
     setConfirmed(null)
   }
 
+  /**
+   * How many of a material are available to a faction after
+   * higher-priority factions have taken their share.
+   */
+  function getEffectiveHave(materialId: string, factionId: string): number {
+    const totalHave = getState(materialId).have
+    const myIndex = FACTION_PRIORITY.indexOf(factionId)
+
+    let remaining = totalHave
+    for (let i = 0; i < myIndex; i++) {
+      const higherFaction = factions.find(f => f.id === FACTION_PRIORITY[i])
+      if (!higherFaction) continue
+      const theirNeed = higherFaction.materials.find(m => m.materialId === materialId)?.need ?? 0
+      const theyTake = Math.min(remaining, theirNeed)
+      remaining -= theyTake
+      if (remaining <= 0) return 0
+    }
+    return remaining
+  }
+
   function getTotalRemaining(factionId: string): number {
     const faction = factions.find(f => f.id === factionId)
     if (!faction) return 0
     return faction.materials.reduce((sum, { materialId, need }) => {
-      const s = getState(materialId)
-      return sum + Math.max(0, need - s.have)
+      const effectiveHave = getEffectiveHave(materialId, factionId)
+      return sum + Math.max(0, need - effectiveHave)
     }, 0)
   }
 
@@ -43,8 +66,7 @@ export default function FactionsClient() {
     if (!faction) return { done: 0, total: 0 }
     const total = faction.materials.length
     const done = faction.materials.filter(({ materialId, need }) => {
-      const s = getState(materialId)
-      return s.have >= need
+      return getEffectiveHave(materialId, factionId) >= need
     }).length
     return { done, total }
   }
@@ -53,7 +75,10 @@ export default function FactionsClient() {
     <div>
       <div className="mb-6">
         <h1 className="text-lg font-bold text-white tracking-wide">Factions</h1>
-        <p className="text-xs text-gray-500 mt-1">Set your goals per faction with one click</p>
+        <p className="text-xs text-gray-500 mt-1">
+          Shared materials are allocated top to bottom —{' '}
+          <span className="text-gray-400">CyberAcme → NuCaloric → Traxus → MIDA → Arachne → Sekiguchi</span>
+        </p>
       </div>
 
       {!userId && (
@@ -77,9 +102,14 @@ export default function FactionsClient() {
             >
               {/* Header */}
               <div className="flex items-center justify-between mb-4">
-                <h2 className={`text-lg font-bold tracking-wide ${faction.color}`}>
-                  {faction.name}
-                </h2>
+                <div>
+                  <h2 className={`text-lg font-bold tracking-wide ${faction.color}`}>
+                    {faction.name}
+                  </h2>
+                  <div className="text-xs text-gray-600 mt-0.5">
+                    Priority #{FACTION_PRIORITY.indexOf(faction.id) + 1}
+                  </div>
+                </div>
                 {faction.tbc ? (
                   <span className="text-xs text-gray-600 border border-gray-700 rounded px-2 py-0.5">TBC</span>
                 ) : userId ? (
@@ -113,12 +143,12 @@ export default function FactionsClient() {
                 ) : null}
               </div>
 
-              {/* Progress bar (only if applied / has data) */}
+              {/* Progress bar */}
               {!faction.tbc && userId && !loading && total > 0 && (
                 <div className="mb-4">
                   <div className="flex justify-between text-xs text-gray-500 mb-1">
                     <span>{done}/{total} materials complete</span>
-                    <span>{totalRemaining} items remaining</span>
+                    <span>{totalRemaining} items still needed</span>
                   </div>
                   <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
                     <div
@@ -137,9 +167,11 @@ export default function FactionsClient() {
                   {faction.materials.map(({ materialId, need }) => {
                     const mat = getMaterialById(materialId)
                     if (!mat) return null
-                    const s = getState(materialId)
-                    const remaining = Math.max(0, need - s.have)
-                    const complete = s.have >= need
+                    const effectiveHave = getEffectiveHave(materialId, faction.id)
+                    const rawHave = getState(materialId).have
+                    const remaining = Math.max(0, need - effectiveHave)
+                    const complete = effectiveHave >= need
+                    const isShared = rawHave !== effectiveHave // higher faction took some
 
                     return (
                       <Link
@@ -153,23 +185,33 @@ export default function FactionsClient() {
                           <Image
                             src={mat.image}
                             alt={mat.name}
-                            width={64}
-                            height={64}
+                            width={48}
+                            height={48}
                             className="rounded shrink-0 object-contain"
                           />
                         )}
                         <div className="flex-1 min-w-0">
                           <div className="text-white text-xs font-medium truncate">{mat.name}</div>
-                          <div className="text-gray-500 text-xs">
+                          <div className="text-gray-500 text-xs mt-0.5">
                             {complete ? (
                               <span className="text-green-400">✓ Complete</span>
                             ) : (
-                              <span>Have {s.have} / Need {need} — <span className="text-white">{remaining} left</span></span>
+                              <>
+                                <span className="text-white font-medium">{remaining} left</span>
+                                <span className="text-gray-600">
+                                  {' '}· have {effectiveHave}
+                                  {isShared && (
+                                    <span className="text-yellow-600" title="Some stock allocated to higher-priority faction">
+                                      {' '}({rawHave} total, {rawHave - effectiveHave} to higher faction)
+                                    </span>
+                                  )}
+                                </span>
+                              </>
                             )}
                           </div>
                         </div>
-                        <div className={`text-sm font-bold shrink-0 ${complete ? 'text-green-400' : 'text-gray-300'}`}>
-                          {complete ? '✓' : need}
+                        <div className={`text-sm font-bold shrink-0 ${complete ? 'text-green-400' : 'text-white'}`}>
+                          {complete ? '✓' : remaining}
                         </div>
                       </Link>
                     )
