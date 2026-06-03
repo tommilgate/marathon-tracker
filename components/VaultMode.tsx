@@ -70,17 +70,15 @@ function VaultItem({ material: m, have, isSelected, onSelect }: ItemProps) {
       {...attributes}
       {...listeners}
       onClick={onSelect}
-      className={`relative bg-[#1a1f2e] border-2 rounded cursor-pointer select-none overflow-hidden transition-colors
-        ${isSelected ? 'border-[#b8ff00]' : 'border-gray-700 hover:border-gray-500'}
-      `}
+      className="relative bg-[#161c27] cursor-pointer select-none overflow-hidden"
     >
-      {/* Image fills the entire cell */}
+      {/* Image fills the entire cell — no padding */}
       {m.image ? (
         <Image
           src={m.image}
           alt={m.name}
           fill
-          className="object-contain p-2"
+          className="object-contain"
           sizes="15vw"
         />
       ) : (
@@ -89,16 +87,16 @@ function VaultItem({ material: m, have, isSelected, onSelect }: ItemProps) {
         </div>
       )}
 
-      {/* Count — grey bar bottom-right, only when have > 0 */}
+      {/* Count — dark chip bottom-right */}
       {have > 0 && (
-        <div className="absolute bottom-0 right-0 bg-gray-900/85 px-2 py-0.5 rounded-tl text-white text-xs font-bold z-10 min-w-[28px] text-center">
+        <div className="absolute bottom-0 right-0 bg-black/70 px-1.5 py-0.5 text-white text-xs font-bold z-10">
           ×{have}
         </div>
       )}
 
       {/* Selected highlight */}
       {isSelected && (
-        <div className="absolute inset-0 border-2 border-[#b8ff00] rounded pointer-events-none" />
+        <div className="absolute inset-0 ring-2 ring-inset ring-[#b8ff00] pointer-events-none" />
       )}
     </div>
   )
@@ -188,8 +186,8 @@ export default function VaultMode({ userId }: VaultModeProps) {
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={orderedMaterials.map(m => m.id)} strategy={rectSortingStrategy}>
           <div
-            className="grid gap-1.5"
-            style={{ gridTemplateColumns: 'repeat(8, 1fr)', gridAutoRows: '90px' }}
+            className="grid gap-0.5"
+            style={{ gridTemplateColumns: 'repeat(8, 1fr)', gridAutoRows: '115px' }}
           >
             {orderedMaterials.map(m => {
               const s = getState(m.id)
