@@ -83,7 +83,9 @@ export default function FactionsClient() {
     let remaining = totalHave
     for (let i = 0; i < myIndex; i++) {
       const higherFaction = factions.find(f => f.id === FACTION_PRIORITY[i])
-      if (!higherFaction || !activeFactions.has(higherFaction.id)) continue
+      if (!higherFaction) continue
+      // Waterfall always applies regardless of active state —
+      // higher-priority factions always get first claim on the stash
       const theirNeed = higherFaction.materials.find(m => m.materialId === materialId)?.need ?? 0
       remaining -= Math.min(remaining, theirNeed)
       if (remaining <= 0) return 0
