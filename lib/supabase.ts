@@ -23,7 +23,7 @@ export async function getOrCreateUser(username: string): Promise<DbUser> {
   const normalized = username.trim().toLowerCase()
 
   // Clean up empty accounts older than 24h (ghost accounts from typos etc)
-  await supabase.rpc('delete_empty_users').catch(() => {})
+  try { await supabase.rpc('delete_empty_users') } catch { /* best effort */ }
 
   // Try to find existing user
   const { data: existing } = await supabase
