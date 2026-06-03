@@ -290,6 +290,19 @@ export default function VaultMode({ userId }: VaultModeProps) {
   const [hideEmpty, setHideEmpty] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
+  // Restore hideEmpty from localStorage
+  useEffect(() => {
+    if (!userId) return
+    const saved = localStorage.getItem(`marathon-vault-hide-empty-${userId}`)
+    if (saved === 'true') setHideEmpty(true)
+  }, [userId])
+
+  // Save hideEmpty to localStorage
+  useEffect(() => {
+    if (!userId) return
+    localStorage.setItem(`marathon-vault-hide-empty-${userId}`, String(hideEmpty))
+  }, [hideEmpty, userId])
+
   useEffect(() => {
     const saved = loadOrder()
     const defaultOrder = TIER_ORDER.flatMap(tier =>
