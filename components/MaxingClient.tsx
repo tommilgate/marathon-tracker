@@ -79,11 +79,12 @@ export default function MaxingClient() {
   const priority = tierMaterials[0] // the one with fewest remaining
 
   // Get all unique map+location pairs for the priority item
-  const priorityLocations = priority.sources.flatMap(source =>
-    source.locations.length > 0
-      ? source.locations.map(loc => ({ map: source.map, location: loc, note: source.note }))
-      : [{ map: source.map, location: null, note: source.note }]
-  ).filter(s => !['Locked Rooms', 'Lockdown Zones', 'Intercept', 'Convoy'].includes(s.map))
+  const priorityLocations: { map: string; location: string | null; note?: string }[] =
+    priority.sources.flatMap(source =>
+      source.locations.length > 0
+        ? source.locations.map(loc => ({ map: source.map, location: loc as string | null, note: source.note }))
+        : [{ map: source.map, location: null as string | null, note: source.note }]
+    ).filter(s => !['Locked Rooms', 'Lockdown Zones', 'Intercept', 'Convoy'].includes(s.map))
 
   // Completion progress for this tier
   const tierTotal = materials.filter(m => m.tier === currentTier && isTracked(m))
