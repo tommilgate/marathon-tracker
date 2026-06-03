@@ -10,8 +10,8 @@ export async function POST(req: NextRequest) {
     const { imageBase64, mediaType } = await req.json()
 
     const response = await client.messages.create({
-      model: 'claude-haiku-4-5',
-      max_tokens: 1024,
+      model: 'claude-sonnet-4-5',
+      max_tokens: 2048,
       messages: [
         {
           role: 'user',
@@ -26,21 +26,28 @@ export async function POST(req: NextRequest) {
             },
             {
               type: 'text',
-              text: `This is a screenshot of the in-game salvage/stash inventory from the game Marathon.
+              text: `This is a screenshot of the salvage/stash inventory screen from the game Marathon.
 
-Each item cell shows:
-- The item image
-- A count in the bottom-right corner like "×3", "×14", "×0" etc
+The inventory is a grid of item cells. Each occupied cell contains:
+- An item image in the centre
+- A small "×N" count label in the BOTTOM-RIGHT corner of the cell (e.g. ×2, ×14, ×35)
+- A coloured price badge in the TOP-LEFT corner (e.g. ◈300, ◈1.0k)
 
-Your job: identify every item you can see and its count.
+Rules:
+1. ONLY report items where you can clearly read a "×N" count in the bottom-right corner
+2. Do NOT guess or infer — if the count text is unclear, skip that item
+3. Do NOT include items with ×0 or empty cells
+4. The count is ALWAYS in the bottom-right as "×N" — do not read any other numbers
 
-Match each item to one of these known material IDs:
+Here are the known material names to match against:
 ${MATERIAL_LIST}
 
-Return ONLY a JSON array, no other text. Format:
-[{"id": "material-id", "count": 5}, ...]
+Match what you see to the closest name in that list. If you cannot confidently match an item, skip it.
 
-Only include items where count > 0. If you can't confidently identify an item, skip it.`,
+If the image does not clearly show a Marathon game inventory screen with readable ×N counts, return an empty array: []
+
+Return ONLY valid JSON — no explanation, no markdown. Format:
+[{"id": "material-id", "count": 5}, ...]`,
             },
           ],
         },
