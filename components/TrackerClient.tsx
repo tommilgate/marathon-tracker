@@ -171,7 +171,8 @@ export default function TrackerClient() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-800 bg-gray-900/50">
-              <th className="text-left px-4 py-3 text-xs text-gray-500 font-medium w-[40%]">Material</th>
+              <th className="w-8 px-2 py-3"></th>
+              <th className="text-left px-4 py-3 text-xs text-gray-500 font-medium w-[38%]">Material</th>
               <th className="text-center px-3 py-3 text-xs text-gray-500 font-medium w-[15%]">Need</th>
               <th className="text-center px-3 py-3 text-xs text-gray-500 font-medium w-[25%]">Have</th>
               <th className="text-center px-3 py-3 text-xs text-gray-500 font-medium w-[15%]">Left</th>
@@ -183,7 +184,7 @@ export default function TrackerClient() {
               if (tierMats.length === 0) return null
               return [
                 <tr key={`header-${tier}`} className="bg-gray-900/30">
-                  <td colSpan={4} className={`px-4 py-2 text-xs font-bold uppercase tracking-widest ${TIER_COLORS[tier]}`}>
+                  <td colSpan={5} className={`px-4 py-2 text-xs font-bold uppercase tracking-widest ${TIER_COLORS[tier]}`}>
                     {TIER_LABELS[tier]}
                   </td>
                 </tr>,
@@ -198,40 +199,46 @@ export default function TrackerClient() {
                       key={m.id}
                       className={`border-t border-gray-800/50 transition-colors ${isComplete ? 'opacity-40' : 'hover:bg-gray-900/30'}`}
                     >
+                      {/* Pin column */}
+                      <td className="px-2 py-3 text-center">
+                        <button
+                          onClick={() => togglePin(m.id)}
+                          disabled={!pins.includes(m.id) && pins.length >= MAX_PINS}
+                          title={pins.includes(m.id) ? 'Stop hunting' : pins.length >= MAX_PINS ? 'Max 3 — remove one first' : 'Mark as hunting'}
+                          className="group w-5 h-5 rounded-full border-2 flex items-center justify-center mx-auto transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                          style={{
+                            borderColor: pins.includes(m.id) ? '#b8ff00' : undefined,
+                            backgroundColor: pins.includes(m.id) ? '#b8ff00' : undefined,
+                          }}
+                        >
+                          {pins.includes(m.id) && (
+                            <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                              <circle cx="4" cy="4" r="2.5" fill="#000"/>
+                            </svg>
+                          )}
+                        </button>
+                      </td>
+
                       {/* Name */}
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <Link
-                            href={`/materials/${m.id}`}
-                            className="flex items-center gap-3 hover:text-[#b8ff00] transition-colors font-medium flex-1 min-w-0"
-                          >
-                            {m.image && (
-                              <Image
-                                src={m.image}
-                                alt={m.name}
-                                width={64}
-                                height={64}
-                                className="rounded shrink-0 object-contain bg-gray-800"
-                              />
-                            )}
-                            <span>{m.name}</span>
-                            {isComplete && (
-                              <span className="text-xs text-green-500">✓</span>
-                            )}
-                          </Link>
-                          <button
-                            onClick={() => togglePin(m.id)}
-                            disabled={!pins.includes(m.id) && pins.length >= MAX_PINS}
-                            title={pins.includes(m.id) ? 'Unpin' : pins.length >= MAX_PINS ? 'Max 3 pins' : 'Pin — show others you\'re hunting this'}
-                            className={`shrink-0 text-base transition-colors disabled:opacity-20 ${
-                              pins.includes(m.id)
-                                ? 'text-[#b8ff00]'
-                                : 'text-gray-700 hover:text-gray-400'
-                            }`}
-                          >
-                            📍
-                          </button>
-                        </div>
+                        <Link
+                          href={`/materials/${m.id}`}
+                          className="flex items-center gap-3 hover:text-[#b8ff00] transition-colors font-medium"
+                        >
+                          {m.image && (
+                            <Image
+                              src={m.image}
+                              alt={m.name}
+                              width={64}
+                              height={64}
+                              className="rounded shrink-0 object-contain bg-gray-800"
+                            />
+                          )}
+                          <span>{m.name}</span>
+                          {isComplete && (
+                            <span className="text-xs text-green-500">✓</span>
+                          )}
+                        </Link>
                       </td>
 
                       {/* Need */}
