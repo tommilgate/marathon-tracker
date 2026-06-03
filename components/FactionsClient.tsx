@@ -113,11 +113,24 @@ export default function FactionsClient() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-lg font-bold text-white tracking-wide">Factions</h1>
-        <p className="text-xs text-gray-500 mt-1">
-          Active factions sum their needs on the tracker · shared materials flow top to bottom
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-lg font-bold text-white tracking-wide">Factions</h1>
+          <p className="text-xs text-gray-500 mt-1">
+            Active factions sum their needs on the tracker · shared materials flow top to bottom
+          </p>
+        </div>
+        {userId && !loading && activeFactions.size > 0 && (
+          <button
+            onClick={() => {
+              if (!confirm('This will set your tracker needs to the combined total of all active factions. Your have counts won\'t change. Continue?')) return
+              recomputeNeeds(activeFactions)
+            }}
+            className="shrink-0 px-3 py-1.5 text-xs border border-[#b8ff00]/40 text-[#b8ff00] rounded hover:bg-[#b8ff00]/10 transition-colors"
+          >
+            ↻ Sync tracker totals
+          </button>
+        )}
       </div>
 
       {!userId && (
@@ -130,10 +143,10 @@ export default function FactionsClient() {
         <div className="border border-yellow-600/40 bg-yellow-600/10 rounded-lg px-5 py-4 mb-6">
           <div className="text-yellow-400 text-sm font-medium mb-1">⚠ Action needed</div>
           <p className="text-gray-300 text-xs leading-relaxed">
-            You have existing goals in your tracker but no factions are marked as active yet.
-            Click <strong className="text-white">Set goals</strong> on each faction you're working on, then choose{' '}
-            <strong className="text-white">Activate (keep progress)</strong> — this marks them active without
-            touching your existing numbers.
+            You have existing goals set but no factions are marked active yet. Click{' '}
+            <strong className="text-white">Set goals</strong> on each faction you're working on and choose{' '}
+            <strong className="text-white">Activate</strong>, then hit{' '}
+            <strong className="text-[#b8ff00]">↻ Sync tracker totals</strong> to fix the combined need numbers.
           </p>
         </div>
       )}
