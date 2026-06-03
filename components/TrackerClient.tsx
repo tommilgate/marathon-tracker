@@ -155,8 +155,8 @@ export default function TrackerClient() {
                             <Image
                               src={m.image}
                               alt={m.name}
-                              width={32}
-                              height={32}
+                              width={64}
+                              height={64}
                               className="rounded shrink-0 object-contain bg-gray-800"
                             />
                           )}

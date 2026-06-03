@@ -36,8 +36,8 @@ export default async function MaterialPage({ params }: { params: Promise<{ id: s
               <Image
                 src={material.image}
                 alt={material.name}
-                width={72}
-                height={72}
+                width={96}
+                height={96}
                 className="rounded-lg shrink-0 object-contain bg-black/30"
               />
             )}

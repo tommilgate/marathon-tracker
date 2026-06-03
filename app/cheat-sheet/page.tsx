@@ -97,8 +97,8 @@ export default function CheatSheetPage() {
                                   <Image
                                     src={m.image}
                                     alt={m.name}
-                                    width={56}
-                                    height={56}
+                                    width={64}
+                                    height={64}
                                     className="object-contain w-full h-full p-0.5"
                                   />
                                 ) : (

@@ -244,8 +244,8 @@ export default function MapsClient() {
                             <Image
                               src={m.image}
                               alt={m.name}
-                              width={40}
-                              height={40}
+                              width={64}
+                              height={64}
                               className="rounded shrink-0 object-contain"
                             />
                           )}
