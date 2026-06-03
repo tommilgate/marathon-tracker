@@ -93,6 +93,17 @@ export const materials: Material[] = [
 
   // SUPERIOR
   {
+    id: 'shell-id',
+    name: 'Shell ID',
+    image: '/images/Shell_ID.webp',
+    tier: 'superior',
+    value: 1000,
+    description: 'Superior salvage.',
+    salvageType: [],
+    sources: [],
+    usedBy: [],
+  },
+  {
     id: 'ballistic-turbine',
     name: 'Ballistic Turbine',
     image: '/images/Ballistic_Turbine.webp',
@@ -194,6 +205,17 @@ export const materials: Material[] = [
   },
 
   // DELUXE
+  {
+    id: 'uesc-obedience-matrix',
+    name: 'UESC Obedience Matrix',
+    image: '/images/UESC_Obedience_Matrix.webp',
+    tier: 'deluxe',
+    value: 300,
+    description: 'Deluxe salvage.',
+    salvageType: [],
+    sources: [],
+    usedBy: [],
+  },
   {
     id: 'amygdala-drive',
     name: 'Amygdala Drive',
