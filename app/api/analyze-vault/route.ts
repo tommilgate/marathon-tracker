@@ -2,17 +2,15 @@ import Anthropic from '@anthropic-ai/sdk'
 import { NextRequest, NextResponse } from 'next/server'
 import { materials } from '@/lib/materials'
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-
-// Build a reference list for Claude so it knows exactly what to match against
 const MATERIAL_LIST = materials.map(m => `${m.id}: "${m.name}"`).join('\n')
 
 export async function POST(req: NextRequest) {
   try {
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
     const { imageBase64, mediaType } = await req.json()
 
     const response = await client.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
+      model: 'claude-haiku-4-5',
       max_tokens: 1024,
       messages: [
         {
