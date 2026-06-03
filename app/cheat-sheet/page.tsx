@@ -10,9 +10,8 @@ const TIER_LABELS: Record<Tier, string> = {
   standard: 'Standard',
 }
 
-// All salvage types in display order
+// All salvage types in display order (Eccentric/Prestige excluded)
 const SALVAGE_TYPES = [
-  'Eccentric',
   'Rod',
   'Compound',
   'Lens',
@@ -31,7 +30,7 @@ export default function CheatSheetPage() {
   // Build lookup: tier → salvageType → materials[]
   const grid: Record<Tier, Record<string, typeof materials>> = {} as Record<Tier, Record<string, typeof materials>>
 
-  for (const tier of TIER_ORDER) {
+  for (const tier of TIER_ORDER.filter(t => t !== 'prestige')) {
     grid[tier] = {}
     for (const type of SALVAGE_TYPES) {
       grid[tier][type] = materials.filter(
@@ -41,8 +40,9 @@ export default function CheatSheetPage() {
   }
 
   // Only show salvage type columns that have at least one material
+  const TIERS = TIER_ORDER.filter(t => t !== 'prestige')
   const activeTypes = SALVAGE_TYPES.filter(type =>
-    TIER_ORDER.some(tier => grid[tier][type].length > 0)
+    TIERS.some(tier => grid[tier][type].length > 0)
   )
 
   return (
@@ -65,7 +65,7 @@ export default function CheatSheetPage() {
             </tr>
           </thead>
           <tbody>
-            {TIER_ORDER.map(tier => {
+            {TIER_ORDER.filter(t => t !== 'prestige').map(tier => {
               const hasAny = activeTypes.some(type => grid[tier][type].length > 0)
               if (!hasAny) return null
               return (
