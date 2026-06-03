@@ -61,6 +61,9 @@ function VaultItem({ material: m, have, isSelected, isEditing, onSelect, onEdit,
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: m.id })
 
+  // Pull dnd-kit's onPointerDown out so we can call it alongside ours
+  const { onPointerDown: dndPointerDown, ...otherListeners } = (listeners ?? {}) as Record<string, unknown> & { onPointerDown?: React.PointerEventHandler }
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -74,12 +77,21 @@ function VaultItem({ material: m, have, isSelected, isEditing, onSelect, onEdit,
     if (isEditing) setTimeout(() => inputRef.current?.select(), 50)
   }, [isEditing])
 
-  function handlePointerDown() {
+  function handlePointerDown(e: React.PointerEvent) {
+    dndPointerDown?.(e)           // let dnd-kit start tracking
     didLongPress.current = false
     holdTimer.current = setTimeout(() => {
       didLongPress.current = true
       onEdit()
-    }, 500)
+    }, 600)
+  }
+
+  function handlePointerMove() {
+    // pointer moved = user is dragging, cancel long-press
+    if (holdTimer.current) {
+      clearTimeout(holdTimer.current)
+      holdTimer.current = null
+    }
   }
 
   function handlePointerUp() {
@@ -96,7 +108,9 @@ function VaultItem({ material: m, have, isSelected, isEditing, onSelect, onEdit,
       ref={setNodeRef}
       style={style}
       {...attributes}
+      {...otherListeners}
       onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerLeave}
       className="relative bg-[#161c27] cursor-pointer select-none overflow-hidden"
@@ -109,21 +123,6 @@ function VaultItem({ material: m, have, isSelected, isEditing, onSelect, onEdit,
           <span className="text-gray-600 text-xs text-center leading-tight px-1">{m.name}</span>
         </div>
       )}
-
-      {/* Drag handle — top-left, separate from click/long-press */}
-      <div
-        {...listeners}
-        onPointerDown={e => e.stopPropagation()}
-        className="absolute top-0 left-0 w-6 h-6 flex items-center justify-center cursor-grab active:cursor-grabbing z-20 opacity-0 hover:opacity-100 transition-opacity"
-        title="Drag to reorder"
-      >
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-          <circle cx="3" cy="3" r="1.2" fill="#9ca3af"/>
-          <circle cx="7" cy="3" r="1.2" fill="#9ca3af"/>
-          <circle cx="3" cy="7" r="1.2" fill="#9ca3af"/>
-          <circle cx="7" cy="7" r="1.2" fill="#9ca3af"/>
-        </svg>
-      </div>
 
       {/* Count chip */}
       {have > 0 && !isEditing && (
