@@ -150,11 +150,13 @@ function VaultItem({ material: m, have, isSelected, isEditing, onSelect, onEdit,
 }
 
 // ---------------------------------------------------------------------------
-// Screenshot uploader
+// Screenshot uploader with review step
 // ---------------------------------------------------------------------------
-function ScreenshotUploader({ onResults }: { onResults: (r: { id: string; count: number }[]) => void }) {
-  const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
-  const [found, setFound] = useState(0)
+type ScanResult = { id: string; count: number }
+
+function ScreenshotUploader({ onResults }: { onResults: (r: ScanResult[]) => void }) {
+  const [status, setStatus] = useState<'idle' | 'loading' | 'review' | 'error'>('idle')
+  const [pending, setPending] = useState<ScanResult[]>([])
   const fileRef = useRef<HTMLInputElement>(null)
 
   async function handleFile(file: File) {
@@ -164,7 +166,6 @@ function ScreenshotUploader({ onResults }: { onResults: (r: { id: string; count:
       const dataUrl = e.target?.result as string
       const [header, base64] = dataUrl.split(',')
       const mediaType = header.match(/:(.*?);/)?.[1] ?? 'image/png'
-
       try {
         const res = await fetch('/api/analyze-vault', {
           method: 'POST',
@@ -172,35 +173,79 @@ function ScreenshotUploader({ onResults }: { onResults: (r: { id: string; count:
           body: JSON.stringify({ imageBase64: base64, mediaType }),
         })
         const data = await res.json()
-        if (!res.ok) {
-          console.error('Scan error:', data.error)
-          setStatus('error')
-          return
-        }
+        if (!res.ok) { setStatus('error'); return }
         if (data.items?.length) {
-          onResults(data.items)
-          setFound(data.items.length)
-          setStatus('done')
+          setPending(data.items)
+          setStatus('review')
         } else {
-          // Got a response but found nothing — still show as done with 0
-          setFound(0)
-          setStatus('done')
+          setStatus('error')
         }
-      } catch {
-        setStatus('error')
-      }
+      } catch { setStatus('error') }
     }
     reader.readAsDataURL(file)
   }
 
+  function updateCount(id: string, val: number) {
+    setPending(p => p.map(x => x.id === id ? { ...x, count: Math.max(0, val) } : x))
+  }
+
+  function removeItem(id: string) {
+    setPending(p => p.filter(x => x.id !== id))
+  }
+
+  if (status === 'review') {
+    return (
+      <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+        <div className="bg-[#0f1117] border border-gray-700 rounded-xl w-full max-w-lg max-h-[80vh] flex flex-col">
+          <div className="px-5 py-4 border-b border-gray-800">
+            <h2 className="text-white font-bold">Review scan results</h2>
+            <p className="text-gray-500 text-xs mt-0.5">Edit or remove any wrong values before applying</p>
+          </div>
+          <div className="overflow-y-auto flex-1 px-5 py-3 space-y-2">
+            {pending.map(({ id, count }) => {
+              const mat = materials.find(m => m.id === id)
+              if (!mat) return null
+              return (
+                <div key={id} className="flex items-center gap-3">
+                  {mat.image && (
+                    <Image src={mat.image} alt={mat.name} width={36} height={36} className="rounded object-contain bg-gray-800 shrink-0" />
+                  )}
+                  <span className="text-white text-sm flex-1 truncate">{mat.name}</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={count}
+                    onChange={e => updateCount(id, parseInt(e.target.value) || 0)}
+                    className="w-16 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white text-center text-sm focus:outline-none focus:border-[#b8ff00]"
+                  />
+                  <button onClick={() => removeItem(id)} className="text-gray-600 hover:text-red-400 text-lg leading-none">×</button>
+                </div>
+              )
+            })}
+          </div>
+          <div className="px-5 py-4 border-t border-gray-800 flex justify-between gap-3">
+            <button
+              onClick={() => { setPending([]); setStatus('idle') }}
+              className="px-4 py-2 text-sm border border-gray-700 text-gray-400 rounded hover:border-gray-500 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => { onResults(pending.filter(x => x.count > 0)); setStatus('idle'); setPending([]) }}
+              className="px-4 py-2 text-sm bg-[#b8ff00] text-black font-bold rounded hover:bg-[#a3e600] transition-colors"
+            >
+              Apply {pending.filter(x => x.count > 0).length} items
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex items-center gap-2">
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]) }}
+      <input ref={fileRef} type="file" accept="image/*" className="hidden"
+        onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]); e.target.value = '' }}
       />
       <button
         onClick={() => { setStatus('idle'); fileRef.current?.click() }}
@@ -209,11 +254,6 @@ function ScreenshotUploader({ onResults }: { onResults: (r: { id: string; count:
       >
         {status === 'loading' ? '⏳ Scanning...' : '📷 Scan screenshot'}
       </button>
-      {status === 'done' && (
-        <span className={`text-xs shrink-0 ${found > 0 ? 'text-green-400' : 'text-yellow-400'}`}>
-          {found > 0 ? `✓ ${found} items updated` : 'No items recognised'}
-        </span>
-      )}
       {status === 'error' && (
         <span className="text-xs text-red-400 shrink-0">Couldn't read screenshot</span>
       )}
