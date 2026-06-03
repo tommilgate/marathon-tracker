@@ -76,12 +76,13 @@ export function useTracker(userId: string | null) {
     persist(id, next)
   }
 
-  // Spend: only reduces have — need stays as the original target
+  // Spend: reduces both have and need together — remaining stays the same
+  // (you didn't find new materials, you used some — still need the same amount more)
   function spend(id: string, amount: number) {
     const cur = getState(id)
     const next = {
       have: Math.max(0, cur.have - amount),
-      need: cur.need, // unchanged — need = original total, remaining = need - have
+      need: Math.max(0, cur.need - amount),
     }
     setStore(s => ({ ...s, [id]: next }))
     persist(id, next)
