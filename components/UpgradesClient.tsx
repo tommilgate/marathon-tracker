@@ -18,7 +18,7 @@ export default function UpgradesClient() {
     if (u) setUserId(u.id)
   }, [])
 
-  const { getState, adjustHave, loading } = useTracker(userId)
+  const { getState, adjustHave, setNeed, loading } = useTracker(userId)
 
   // Which materials to show: faction-filtered if selected, else all where have > 0
   const visibleMaterials: Material[] = (() => {
@@ -45,7 +45,10 @@ export default function UpgradesClient() {
       return
     }
 
+    // Deduct from both have (spent from stash) and need (upgrades done)
     adjustHave(materialId, -amount)
+    const currentNeed = getState(materialId).need
+    setNeed(materialId, Math.max(0, currentNeed - amount))
     setSpendAmounts(s => ({ ...s, [materialId]: '' }))
     setFlash(f => ({ ...f, [materialId]: 'success' }))
     setTimeout(() => setFlash(f => { const n = { ...f }; delete n[materialId]; return n }), 800)
@@ -142,12 +145,15 @@ export default function UpgradesClient() {
                   <div className="min-w-0">
                     <div className="text-white text-sm font-medium truncate">{m.name}</div>
                     <div className="text-xs text-gray-500 mt-0.5">
-                      Have{' '}
-                      <span className={`font-bold ${isOver ? 'text-red-400' : 'text-white'}`}>
-                        {s.have}
-                      </span>
+                      Have <span className={`font-bold ${isOver ? 'text-red-400' : 'text-white'}`}>{s.have}</span>
+                      {' · '}
+                      Need <span className="font-bold text-white">{s.need}</span>
                       {amount > 0 && !isOver && (
-                        <span className="text-gray-600"> → <span className="text-[#b8ff00]">{afterSpend}</span></span>
+                        <span className="text-gray-600">
+                          {' → '}have <span className="text-[#b8ff00]">{afterSpend}</span>
+                          {', need '}
+                          <span className="text-[#b8ff00]">{Math.max(0, s.need - amount)}</span>
+                        </span>
                       )}
                       {isOver && (
                         <span className="text-red-400"> — not enough!</span>
