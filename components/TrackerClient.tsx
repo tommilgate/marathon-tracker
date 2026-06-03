@@ -1,0 +1,236 @@
+'use client'
+
+import { useState } from 'react'
+import Image from 'next/image'
+import Link from 'next/link'
+import { materials, TIER_ORDER, TIER_COLORS, TIER_BG, type Tier } from '@/lib/materials'
+import { useTracker } from '@/lib/store'
+
+const TIER_LABELS: Record<Tier, string> = {
+  prestige: 'Prestige',
+  superior: 'Superior',
+  deluxe: 'Deluxe',
+  enhanced: 'Enhanced',
+  standard: 'Standard',
+}
+
+export default function TrackerClient() {
+  const { getState, setNeed, adjustHave, setHave } = useTracker()
+  const [editingNeed, setEditingNeed] = useState<string | null>(null)
+  const [editingHave, setEditingHave] = useState<string | null>(null)
+  const [filterTier, setFilterTier] = useState<Tier | 'all'>('all')
+  const [hideComplete, setHideComplete] = useState(false)
+
+  const filtered = materials.filter(m => {
+    if (filterTier !== 'all' && m.tier !== filterTier) return false
+    if (hideComplete) {
+      const s = getState(m.id)
+      if (s.need > 0 && s.have >= s.need) return false
+    }
+    return true
+  })
+
+  const totalRemaining = materials.reduce((sum, m) => {
+    const s = getState(m.id)
+    return sum + Math.max(0, s.need - s.have)
+  }, 0)
+
+  const totalNeeded = materials.reduce((sum, m) => sum + getState(m.id).need, 0)
+
+  return (
+    <div>
+      {/* Header stats */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-lg font-bold text-white tracking-wide">Salvage Tracker</h1>
+          {totalNeeded > 0 && (
+            <p className="text-xs text-gray-500 mt-0.5">
+              {totalRemaining} remaining across {materials.filter(m => getState(m.id).need > 0).length} materials
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={hideComplete}
+              onChange={e => setHideComplete(e.target.checked)}
+              className="accent-[#b8ff00]"
+            />
+            Hide complete
+          </label>
+          <div className="flex gap-1">
+            {(['all', ...TIER_ORDER] as const).map(t => (
+              <button
+                key={t}
+                onClick={() => setFilterTier(t)}
+                className={`px-2 py-1 text-xs rounded border transition-colors ${
+                  filterTier === t
+                    ? t === 'all'
+                      ? 'bg-white/10 border-white/20 text-white'
+                      : `${TIER_BG[t as Tier]} border-current ${TIER_COLORS[t as Tier]}`
+                    : 'border-gray-700 text-gray-500 hover:border-gray-500'
+                }`}
+              >
+                {t === 'all' ? 'All' : TIER_LABELS[t as Tier]}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="border border-gray-800 rounded-lg overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-800 bg-gray-900/50">
+              <th className="text-left px-4 py-3 text-xs text-gray-500 font-medium w-[40%]">Material</th>
+              <th className="text-center px-3 py-3 text-xs text-gray-500 font-medium w-[15%]">Need</th>
+              <th className="text-center px-3 py-3 text-xs text-gray-500 font-medium w-[25%]">Have</th>
+              <th className="text-center px-3 py-3 text-xs text-gray-500 font-medium w-[15%]">Left</th>
+            </tr>
+          </thead>
+          <tbody>
+            {TIER_ORDER.map(tier => {
+              const tierMats = filtered.filter(m => m.tier === tier)
+              if (tierMats.length === 0) return null
+              return [
+                <tr key={`header-${tier}`} className="bg-gray-900/30">
+                  <td colSpan={4} className={`px-4 py-2 text-xs font-bold uppercase tracking-widest ${TIER_COLORS[tier]}`}>
+                    {TIER_LABELS[tier]}
+                  </td>
+                </tr>,
+                ...tierMats.map(m => {
+                  const s = getState(m.id)
+                  const remaining = Math.max(0, s.need - s.have)
+                  const isComplete = s.need > 0 && s.have >= s.need
+                  const isTracked = s.need > 0
+
+                  return (
+                    <tr
+                      key={m.id}
+                      className={`border-t border-gray-800/50 transition-colors ${isComplete ? 'opacity-40' : 'hover:bg-gray-900/30'}`}
+                    >
+                      {/* Name */}
+                      <td className="px-4 py-3">
+                        <Link
+                          href={`/materials/${m.id}`}
+                          className="flex items-center gap-3 hover:text-[#b8ff00] transition-colors font-medium"
+                        >
+                          {m.image && (
+                            <Image
+                              src={m.image}
+                              alt={m.name}
+                              width={32}
+                              height={32}
+                              className="rounded shrink-0 object-contain bg-gray-800"
+                            />
+                          )}
+                          <span>{m.name}</span>
+                          {isComplete && (
+                            <span className="text-xs text-green-500">✓</span>
+                          )}
+                        </Link>
+                      </td>
+
+                      {/* Need */}
+                      <td className="px-3 py-3 text-center">
+                        {editingNeed === m.id ? (
+                          <input
+                            type="number"
+                            min={0}
+                            defaultValue={s.need}
+                            className="w-14 bg-gray-800 border border-gray-600 rounded px-2 py-0.5 text-center text-white focus:outline-none focus:border-[#b8ff00]"
+                            autoFocus
+                            onBlur={e => {
+                              setNeed(m.id, parseInt(e.target.value) || 0)
+                              setEditingNeed(null)
+                            }}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                setNeed(m.id, parseInt((e.target as HTMLInputElement).value) || 0)
+                                setEditingNeed(null)
+                              }
+                              if (e.key === 'Escape') setEditingNeed(null)
+                            }}
+                          />
+                        ) : (
+                          <button
+                            onClick={() => setEditingNeed(m.id)}
+                            className={`w-14 rounded px-2 py-0.5 border transition-colors ${
+                              isTracked
+                                ? 'border-gray-600 text-white hover:border-gray-400'
+                                : 'border-dashed border-gray-700 text-gray-600 hover:border-gray-500 hover:text-gray-400'
+                            }`}
+                          >
+                            {s.need || '—'}
+                          </button>
+                        )}
+                      </td>
+
+                      {/* Have */}
+                      <td className="px-3 py-3">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => adjustHave(m.id, -1)}
+                            className="w-7 h-7 rounded border border-gray-700 text-gray-400 hover:border-red-500 hover:text-red-400 transition-colors flex items-center justify-center"
+                          >
+                            −
+                          </button>
+                          {editingHave === m.id ? (
+                            <input
+                              type="number"
+                              min={0}
+                              defaultValue={s.have}
+                              className="w-12 bg-gray-800 border border-gray-600 rounded px-2 py-0.5 text-center text-white focus:outline-none focus:border-[#b8ff00]"
+                              autoFocus
+                              onBlur={e => {
+                                setHave(m.id, parseInt(e.target.value) || 0)
+                                setEditingHave(null)
+                              }}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                  setHave(m.id, parseInt((e.target as HTMLInputElement).value) || 0)
+                                  setEditingHave(null)
+                                }
+                                if (e.key === 'Escape') setEditingHave(null)
+                              }}
+                            />
+                          ) : (
+                            <button
+                              onClick={() => setEditingHave(m.id)}
+                              className="w-12 text-center rounded border border-gray-700 text-white hover:border-gray-400 px-2 py-0.5 transition-colors"
+                            >
+                              {s.have}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => adjustHave(m.id, 1)}
+                            className="w-7 h-7 rounded border border-gray-700 text-gray-400 hover:border-[#b8ff00] hover:text-[#b8ff00] transition-colors flex items-center justify-center"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </td>
+
+                      {/* Remaining */}
+                      <td className="px-3 py-3 text-center">
+                        {isTracked ? (
+                          <span className={`font-bold ${isComplete ? 'text-green-500' : remaining > 0 ? 'text-white' : 'text-green-500'}`}>
+                            {isComplete ? '✓' : remaining}
+                          </span>
+                        ) : (
+                          <span className="text-gray-700">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                }),
+              ]
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
