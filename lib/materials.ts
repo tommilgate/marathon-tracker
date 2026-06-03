@@ -456,7 +456,7 @@ export const materials: Material[] = [
   {
     id: 'drone-resin',
     name: 'Drone Resin',
-    image: '',
+    image: '/images/Drone_Resin.jpg',
     tier: 'enhanced',
     value: 50,
     description: 'Resin Salvage.',
