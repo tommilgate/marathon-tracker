@@ -35,6 +35,12 @@ export default function FactionsClient() {
 
   const { getState, setNeed, loading } = useTracker(userId)
 
+  // Detect pre-existing users: they have needs stored but no active factions tracked
+  const hasStoredNeeds = !loading && factions.some(f =>
+    f.materials.some(({ materialId }) => getState(materialId).need > 0)
+  )
+  const needsMigration = !loading && hasStoredNeeds && activeFactions.size === 0
+
   /** Recompute all material needs as sum of active factions */
   function recomputeNeeds(nextActive: Set<string>) {
     // Get every material that appears in any faction
@@ -108,6 +114,17 @@ export default function FactionsClient() {
       {!userId && (
         <div className="text-gray-500 text-sm mb-6">
           <Link href="/" className="text-[#b8ff00] hover:underline">Sign in on the tracker</Link> to save your goals.
+        </div>
+      )}
+
+      {needsMigration && (
+        <div className="border border-yellow-600/40 bg-yellow-600/10 rounded-lg px-5 py-4 mb-6">
+          <div className="text-yellow-400 text-sm font-medium mb-1">⚠ Action needed</div>
+          <p className="text-gray-300 text-xs leading-relaxed">
+            You have existing goals in your tracker but no factions are marked as active yet.
+            Click <strong className="text-white">Set goals</strong> on each faction you're working on below —
+            this will correctly sum your needs across all active factions and fix the tracker numbers.
+          </p>
         </div>
       )}
 
