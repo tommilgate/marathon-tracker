@@ -41,9 +41,8 @@ export default function FactionsClient() {
   )
   const needsMigration = !loading && hasStoredNeeds && activeFactions.size === 0
 
-  /** Recompute all material needs as sum of active factions */
+  /** Full recalculate — only called when user explicitly resets a faction */
   function recomputeNeeds(nextActive: Set<string>) {
-    // Get every material that appears in any faction
     const allMaterialIds = new Set(
       factions.flatMap(f => f.materials.map(m => m.materialId))
     )
@@ -58,12 +57,20 @@ export default function FactionsClient() {
     }
   }
 
+  /** Just toggle active state — never touches stored needs */
   function toggleFaction(factionId: string) {
     const isActive = activeFactions.has(factionId)
     const next = new Set(activeFactions)
     if (isActive) next.delete(factionId)
     else next.add(factionId)
+    setActiveFactions(next)
+    if (userId) saveActive(userId, next)
+    setConfirmed(null)
+  }
 
+  /** Reset a faction's needs back to original totals (destructive) */
+  function resetFactionNeeds(factionId: string) {
+    const next = new Set(activeFactions).add(factionId)
     setActiveFactions(next)
     if (userId) saveActive(userId, next)
     recomputeNeeds(next)
@@ -122,8 +129,9 @@ export default function FactionsClient() {
           <div className="text-yellow-400 text-sm font-medium mb-1">⚠ Action needed</div>
           <p className="text-gray-300 text-xs leading-relaxed">
             You have existing goals in your tracker but no factions are marked as active yet.
-            Click <strong className="text-white">Set goals</strong> on each faction you're working on below —
-            this will correctly sum your needs across all active factions and fix the tracker numbers.
+            Click <strong className="text-white">Set goals</strong> on each faction you're working on, then choose{' '}
+            <strong className="text-white">Activate (keep progress)</strong> — this marks them active without
+            touching your existing numbers.
           </p>
         </div>
       )}
@@ -163,19 +171,36 @@ export default function FactionsClient() {
                   <span className="text-xs text-gray-600 border border-gray-700 rounded px-2 py-0.5">TBC</span>
                 ) : userId ? (
                   isConfirming ? (
-                    <div className="flex gap-2">
-                      <button onClick={() => setConfirmed(null)}
-                        className="text-xs border border-gray-600 text-gray-400 rounded px-3 py-1 hover:border-gray-400 transition-colors">
-                        Cancel
-                      </button>
-                      <button onClick={() => toggleFaction(faction.id)}
-                        className={`text-xs font-bold rounded px-3 py-1 transition-colors ${
-                          confirmed?.action === 'remove'
-                            ? 'bg-red-600 text-white hover:bg-red-700'
-                            : 'bg-[#b8ff00] text-black hover:bg-[#a3e600]'
-                        }`}>
-                        {confirmed?.action === 'remove' ? 'Remove' : 'Activate'}
-                      </button>
+                    <div className="flex flex-col items-end gap-1.5">
+                      {confirmed?.action === 'add' ? (
+                        <>
+                          <div className="flex gap-2">
+                            <button onClick={() => setConfirmed(null)}
+                              className="text-xs border border-gray-600 text-gray-400 rounded px-2 py-1 hover:border-gray-400 transition-colors">
+                              Cancel
+                            </button>
+                            <button onClick={() => toggleFaction(faction.id)}
+                              className="text-xs bg-[#b8ff00] text-black font-bold rounded px-2 py-1 hover:bg-[#a3e600] transition-colors">
+                              Activate (keep progress)
+                            </button>
+                          </div>
+                          <button onClick={() => resetFactionNeeds(faction.id)}
+                            className="text-xs border border-red-800 text-red-400 rounded px-2 py-1 hover:border-red-600 transition-colors">
+                            Reset to original totals
+                          </button>
+                        </>
+                      ) : (
+                        <div className="flex gap-2">
+                          <button onClick={() => setConfirmed(null)}
+                            className="text-xs border border-gray-600 text-gray-400 rounded px-2 py-1 hover:border-gray-400 transition-colors">
+                            Cancel
+                          </button>
+                          <button onClick={() => toggleFaction(faction.id)}
+                            className="text-xs bg-red-600 text-white font-bold rounded px-2 py-1 hover:bg-red-700 transition-colors">
+                            Deactivate
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ) : isActive ? (
                     <button
