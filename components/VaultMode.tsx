@@ -172,12 +172,19 @@ function ScreenshotUploader({ onResults }: { onResults: (r: { id: string; count:
           body: JSON.stringify({ imageBase64: base64, mediaType }),
         })
         const data = await res.json()
+        if (!res.ok) {
+          console.error('Scan error:', data.error)
+          setStatus('error')
+          return
+        }
         if (data.items?.length) {
           onResults(data.items)
           setFound(data.items.length)
           setStatus('done')
         } else {
-          setStatus('error')
+          // Got a response but found nothing — still show as done with 0
+          setFound(0)
+          setStatus('done')
         }
       } catch {
         setStatus('error')
@@ -203,7 +210,9 @@ function ScreenshotUploader({ onResults }: { onResults: (r: { id: string; count:
         {status === 'loading' ? '⏳ Scanning...' : '📷 Scan screenshot'}
       </button>
       {status === 'done' && (
-        <span className="text-xs text-green-400 shrink-0">✓ {found} items updated</span>
+        <span className={`text-xs shrink-0 ${found > 0 ? 'text-green-400' : 'text-yellow-400'}`}>
+          {found > 0 ? `✓ ${found} items updated` : 'No items recognised'}
+        </span>
       )}
       {status === 'error' && (
         <span className="text-xs text-red-400 shrink-0">Couldn't read screenshot</span>

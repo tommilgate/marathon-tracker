@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     const { imageBase64, mediaType } = await req.json()
 
     const response = await client.messages.create({
-      model: 'claude-opus-4-5',
+      model: 'claude-3-5-sonnet-20241022',
       max_tokens: 1024,
       messages: [
         {
@@ -62,9 +62,11 @@ Only include items where count > 0. If you can't confidently identify an item, s
     // Validate IDs against known materials
     const valid = results.filter(r => materials.find(m => m.id === r.id) && r.count > 0)
 
-    return NextResponse.json({ items: valid })
-  } catch (err) {
-    console.error(err)
-    return NextResponse.json({ error: 'Analysis failed' }, { status: 500 })
+    // Return even if empty — client can distinguish "found nothing" from "error"
+    return NextResponse.json({ items: valid, total: results.length })
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('analyze-vault error:', msg)
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
