@@ -1,0 +1,70 @@
+import Anthropic from '@anthropic-ai/sdk'
+import { NextRequest, NextResponse } from 'next/server'
+import { materials } from '@/lib/materials'
+
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+
+// Build a reference list for Claude so it knows exactly what to match against
+const MATERIAL_LIST = materials.map(m => `${m.id}: "${m.name}"`).join('\n')
+
+export async function POST(req: NextRequest) {
+  try {
+    const { imageBase64, mediaType } = await req.json()
+
+    const response = await client.messages.create({
+      model: 'claude-opus-4-5',
+      max_tokens: 1024,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: mediaType,
+                data: imageBase64,
+              },
+            },
+            {
+              type: 'text',
+              text: `This is a screenshot of the in-game salvage/stash inventory from the game Marathon.
+
+Each item cell shows:
+- The item image
+- A count in the bottom-right corner like "×3", "×14", "×0" etc
+
+Your job: identify every item you can see and its count.
+
+Match each item to one of these known material IDs:
+${MATERIAL_LIST}
+
+Return ONLY a JSON array, no other text. Format:
+[{"id": "material-id", "count": 5}, ...]
+
+Only include items where count > 0. If you can't confidently identify an item, skip it.`,
+            },
+          ],
+        },
+      ],
+    })
+
+    const text = response.content[0].type === 'text' ? response.content[0].text : ''
+
+    // Extract JSON from response
+    const jsonMatch = text.match(/\[[\s\S]*\]/)
+    if (!jsonMatch) {
+      return NextResponse.json({ error: 'Could not parse response', raw: text }, { status: 400 })
+    }
+
+    const results = JSON.parse(jsonMatch[0]) as { id: string; count: number }[]
+
+    // Validate IDs against known materials
+    const valid = results.filter(r => materials.find(m => m.id === r.id) && r.count > 0)
+
+    return NextResponse.json({ items: valid })
+  } catch (err) {
+    console.error(err)
+    return NextResponse.json({ error: 'Analysis failed' }, { status: 500 })
+  }
+}

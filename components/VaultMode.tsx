@@ -31,7 +31,6 @@ const TIER_SPAN: Record<Tier, { col: number; row: number }> = {
 }
 
 const ORDER_KEY = 'marathon-vault-order'
-
 function loadOrder(): string[] {
   if (typeof window === 'undefined') return []
   try { return JSON.parse(localStorage.getItem(ORDER_KEY) || '[]') } catch { return [] }
@@ -47,11 +46,19 @@ interface ItemProps {
   material: Material
   have: number
   isSelected: boolean
+  isEditing: boolean
   onSelect: () => void
+  onEdit: () => void
+  onCommit: (val: number) => void
+  onCancelEdit: () => void
 }
 
-function VaultItem({ material: m, have, isSelected, onSelect }: ItemProps) {
+function VaultItem({ material: m, have, isSelected, isEditing, onSelect, onEdit, onCommit, onCancelEdit }: ItemProps) {
   const span = TIER_SPAN[m.tier]
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const didLongPress = useRef(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: m.id })
 
   const style = {
@@ -63,40 +70,143 @@ function VaultItem({ material: m, have, isSelected, onSelect }: ItemProps) {
     zIndex: isDragging ? 50 : undefined,
   }
 
+  useEffect(() => {
+    if (isEditing) setTimeout(() => inputRef.current?.select(), 50)
+  }, [isEditing])
+
+  function handlePointerDown() {
+    didLongPress.current = false
+    holdTimer.current = setTimeout(() => {
+      didLongPress.current = true
+      onEdit()
+    }, 500)
+  }
+
+  function handlePointerUp() {
+    if (holdTimer.current) clearTimeout(holdTimer.current)
+    if (!didLongPress.current) onSelect()
+  }
+
+  function handlePointerLeave() {
+    if (holdTimer.current) clearTimeout(holdTimer.current)
+  }
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
-      onClick={onSelect}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerLeave}
       className="relative bg-[#161c27] cursor-pointer select-none overflow-hidden"
     >
-      {/* Image fills the entire cell — no padding */}
+      {/* Image */}
       {m.image ? (
-        <Image
-          src={m.image}
-          alt={m.name}
-          fill
-          className="object-contain"
-          sizes="15vw"
-        />
+        <Image src={m.image} alt={m.name} fill className="object-contain" sizes="15vw" />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center">
           <span className="text-gray-600 text-xs text-center leading-tight px-1">{m.name}</span>
         </div>
       )}
 
-      {/* Count — dark chip bottom-right */}
-      {have > 0 && (
+      {/* Count chip */}
+      {have > 0 && !isEditing && (
         <div className="absolute bottom-0 right-0 bg-black/70 px-1.5 py-0.5 text-white text-xs font-bold z-10">
           ×{have}
         </div>
       )}
 
-      {/* Selected highlight */}
-      {isSelected && (
+      {/* Inline edit overlay (long press) */}
+      {isEditing && (
+        <div
+          className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-20"
+          onPointerDown={e => e.stopPropagation()}
+        >
+          <div className="text-gray-400 text-xs mb-1 truncate px-1 text-center">{m.name}</div>
+          <input
+            ref={inputRef}
+            type="number"
+            min={0}
+            defaultValue={have}
+            className="w-3/4 bg-gray-800 border border-[#b8ff00] rounded px-2 py-1 text-white text-center text-sm focus:outline-none"
+            onKeyDown={e => {
+              if (e.key === 'Enter') onCommit(parseInt((e.target as HTMLInputElement).value) || 0)
+              if (e.key === 'Escape') onCancelEdit()
+            }}
+            onBlur={e => onCommit(parseInt(e.target.value) || 0)}
+          />
+          <div className="text-gray-600 text-xs mt-1">Enter to confirm</div>
+        </div>
+      )}
+
+      {/* Selected ring */}
+      {isSelected && !isEditing && (
         <div className="absolute inset-0 ring-2 ring-inset ring-[#b8ff00] pointer-events-none" />
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Screenshot uploader
+// ---------------------------------------------------------------------------
+function ScreenshotUploader({ onResults }: { onResults: (r: { id: string; count: number }[]) => void }) {
+  const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
+  const [found, setFound] = useState(0)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  async function handleFile(file: File) {
+    setStatus('loading')
+    const reader = new FileReader()
+    reader.onload = async e => {
+      const dataUrl = e.target?.result as string
+      const [header, base64] = dataUrl.split(',')
+      const mediaType = header.match(/:(.*?);/)?.[1] ?? 'image/png'
+
+      try {
+        const res = await fetch('/api/analyze-vault', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageBase64: base64, mediaType }),
+        })
+        const data = await res.json()
+        if (data.items?.length) {
+          onResults(data.items)
+          setFound(data.items.length)
+          setStatus('done')
+        } else {
+          setStatus('error')
+        }
+      } catch {
+        setStatus('error')
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]) }}
+      />
+      <button
+        onClick={() => { setStatus('idle'); fileRef.current?.click() }}
+        disabled={status === 'loading'}
+        className="px-3 py-1.5 text-xs border border-gray-600 text-gray-300 rounded hover:border-[#b8ff00] hover:text-[#b8ff00] transition-colors disabled:opacity-40 shrink-0"
+      >
+        {status === 'loading' ? '⏳ Scanning...' : '📷 Scan screenshot'}
+      </button>
+      {status === 'done' && (
+        <span className="text-xs text-green-400 shrink-0">✓ {found} items updated</span>
+      )}
+      {status === 'error' && (
+        <span className="text-xs text-red-400 shrink-0">Couldn't read screenshot</span>
       )}
     </div>
   )
@@ -110,9 +220,11 @@ interface VaultModeProps {
 }
 
 export default function VaultMode({ userId }: VaultModeProps) {
-  const { getState, adjustHave } = useTracker(userId)
+  const { getState, adjustHave, setHave } = useTracker(userId)
+
   const [order, setOrder] = useState<string[]>([])
   const [selected, setSelected] = useState<string | null>(null)
+  const [editing, setEditing] = useState<string | null>(null)
   const [hideEmpty, setHideEmpty] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -140,12 +252,13 @@ export default function VaultMode({ userId }: VaultModeProps) {
   }
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (editing) return
     if (!selected) return
     if (e.key === 'Delete' || e.key === 'Backspace') {
       e.preventDefault()
       adjustHave(selected, -1)
     }
-  }, [selected, adjustHave])
+  }, [selected, editing, adjustHave])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown)
@@ -154,7 +267,10 @@ export default function VaultMode({ userId }: VaultModeProps) {
 
   useEffect(() => {
     function handleOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setSelected(null)
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setSelected(null)
+        setEditing(null)
+      }
     }
     window.addEventListener('mousedown', handleOutside)
     return () => window.removeEventListener('mousedown', handleOutside)
@@ -167,20 +283,24 @@ export default function VaultMode({ userId }: VaultModeProps) {
 
   return (
     <div ref={containerRef}>
-      {/* Controls */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
         <p className="text-xs text-gray-500">
-          Click to select · Click again to add · <kbd className="bg-gray-800 px-1 rounded">Delete</kbd> to subtract · Drag to reorder
+          Click = +1 · Hold = type number · <kbd className="bg-gray-800 px-1 rounded">Delete</kbd> = −1 · Drag to reorder
         </p>
-        <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={hideEmpty}
-            onChange={e => setHideEmpty(e.target.checked)}
-            className="accent-[#b8ff00]"
-          />
-          Hide items I have 0 of
-        </label>
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer select-none shrink-0">
+            <input
+              type="checkbox"
+              checked={hideEmpty}
+              onChange={e => setHideEmpty(e.target.checked)}
+              className="accent-[#b8ff00]"
+            />
+            Hide 0s
+          </label>
+          <ScreenshotUploader onResults={results => {
+            for (const { id, count } of results) setHave(id, count)
+          }} />
+        </div>
       </div>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -197,13 +317,14 @@ export default function VaultMode({ userId }: VaultModeProps) {
                   material={m}
                   have={s.have}
                   isSelected={selected === m.id}
+                  isEditing={editing === m.id}
                   onSelect={() => {
-                    if (selected === m.id) {
-                      adjustHave(m.id, 1)
-                    } else {
-                      setSelected(m.id)
-                    }
+                    if (selected === m.id) adjustHave(m.id, 1)
+                    else setSelected(m.id)
                   }}
+                  onEdit={() => { setEditing(m.id); setSelected(null) }}
+                  onCommit={val => { setHave(m.id, val); setEditing(null) }}
+                  onCancelEdit={() => setEditing(null)}
                 />
               )
             })}
