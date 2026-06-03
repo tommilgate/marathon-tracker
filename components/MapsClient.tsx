@@ -5,6 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { materials, TIER_ORDER, TIER_COLORS, TIER_BG, type Tier, type Material } from '@/lib/materials'
 import { useTracker, getSavedUser } from '@/lib/store'
+import { factions } from '@/lib/factions'
 
 const TIER_LABELS: Record<Tier, string> = {
   prestige: 'Prestige',
@@ -37,6 +38,7 @@ export default function MapsClient() {
   const [selectedMap, setSelectedMap] = useState<string>('Perimeter')
   const [hiddenTiers, setHiddenTiers] = useState<Set<Tier>>(new Set())
   const [showOther, setShowOther] = useState(false)
+  const [selectedFaction, setSelectedFaction] = useState<string | null>(null)
 
   useEffect(() => {
     const u = getSavedUser()
@@ -53,9 +55,16 @@ export default function MapsClient() {
     })
   }
 
+  // Build a set of material IDs for the selected faction (null = all)
+  const factionMaterialIds = selectedFaction
+    ? new Set(factions.find(f => f.id === selectedFaction)?.materials.map(x => x.materialId) ?? [])
+    : null
+
   function isNeeded(m: Material): boolean {
     const s = getState(m.id)
-    return s.need > 0 && s.have < s.need
+    if (s.need === 0 || s.have >= s.need) return false
+    if (factionMaterialIds && !factionMaterialIds.has(m.id)) return false
+    return true
   }
 
   function remaining(m: Material): number {
@@ -148,9 +157,37 @@ export default function MapsClient() {
         </button>
       </div>
 
+      {/* Faction filter */}
+      <div className="flex flex-wrap gap-2 mb-3">
+        <span className="text-xs text-gray-600 self-center mr-1">Faction:</span>
+        <button
+          onClick={() => setSelectedFaction(null)}
+          className={`px-3 py-1 rounded border text-xs transition-colors ${
+            selectedFaction === null
+              ? 'bg-white/10 border-gray-400 text-white'
+              : 'border-gray-700 text-gray-500 hover:border-gray-500'
+          }`}
+        >
+          All
+        </button>
+        {factions.filter(f => !f.tbc).map(f => (
+          <button
+            key={f.id}
+            onClick={() => setSelectedFaction(selectedFaction === f.id ? null : f.id)}
+            className={`px-3 py-1 rounded border text-xs transition-colors ${
+              selectedFaction === f.id
+                ? `${f.bgColor} ${f.borderColor} ${f.color}`
+                : 'border-gray-700 text-gray-500 hover:border-gray-500'
+            }`}
+          >
+            {f.name}
+          </button>
+        ))}
+      </div>
+
       {/* Tier toggles */}
       <div className="flex flex-wrap gap-2 mb-6">
-        <span className="text-xs text-gray-600 self-center mr-1">Hide:</span>
+        <span className="text-xs text-gray-600 self-center mr-1">Hide tier:</span>
         {TIER_ORDER.map(tier => (
           <button
             key={tier}
@@ -177,7 +214,9 @@ export default function MapsClient() {
         <div className="border border-gray-800 rounded-lg px-6 py-10 text-center">
           <div className="text-2xl mb-2">✓</div>
           <div className="text-gray-400 text-sm">Nothing needed from {showOther ? 'other sources' : selectedMap}</div>
-          <div className="text-gray-600 text-xs mt-1">Either all collected or no items tracked from here</div>
+          <div className="text-gray-600 text-xs mt-1">
+            {selectedFaction ? `No ${factions.find(f => f.id === selectedFaction)?.name} items needed here` : 'Either all collected or no items tracked from here'}
+          </div>
         </div>
       ) : (
         <div className="space-y-6">
