@@ -263,6 +263,9 @@ export default function FactionsClient() {
       }
     })
 
+    console.log('Active factions:', Array.from(activeFactions))
+    console.log('All material IDs found:', Array.from(allMaterialIds).map(id => ({ id, tier: getMaterialById(id)?.tier })))
+
     const materials = Array.from(allMaterialIds)
       .map(materialId => {
         const state = getState(materialId)
