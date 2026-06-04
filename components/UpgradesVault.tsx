@@ -112,7 +112,7 @@ export default function UpgradesVault({ userId, selectedFaction }: UpgradesVault
         </p>
       </div>
 
-      <div className="grid gap-0.5" style={{ gridTemplateColumns: 'repeat(8, 1fr)', gridAutoRows: '115px' }}>
+      <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(8, 1fr)', gridAutoRows: '80px' }}>
         {visibleMaterials.map(m => {
           const span = TIER_SPAN[m.tier]
           const state = getState(m.id)

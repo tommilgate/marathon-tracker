@@ -504,8 +504,8 @@ export default function VaultMode({ userId }: VaultModeProps) {
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={orderedMaterials.map(m => m.id)} strategy={rectSortingStrategy}>
           <div
-            className="grid gap-0.5"
-            style={{ gridTemplateColumns: 'repeat(8, 1fr)', gridAutoRows: '115px' }}
+            className="grid gap-2"
+            style={{ gridTemplateColumns: 'repeat(8, 1fr)', gridAutoRows: '80px' }}
           >
             {orderedMaterials.map(m => {
               const s = getState(m.id)
