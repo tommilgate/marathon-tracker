@@ -127,10 +127,15 @@ function FactionEditModal({ faction, editValues, onValueChange, onSave, onCancel
           </button>
           <button
             onClick={() => {
+              console.log('=== MODAL SAVE BUTTON CLICKED ===')
+              console.log('numberLists state:', numberLists)
               const totals: Record<string, number> = {}
               faction.materials.forEach(({ materialId }) => {
-                totals[materialId] = getTotal(materialId)
+                const total = getTotal(materialId)
+                console.log(`${materialId}: numberLists[${materialId}] = ${JSON.stringify(numberLists[materialId])}, getTotal = ${total}`)
+                totals[materialId] = total
               })
+              console.log('Final totals being passed to onSave:', totals)
               onSave(totals)
             }}
             className="px-4 py-2 text-sm bg-[#b8ff00] text-black font-bold rounded hover:bg-[#a3e600] transition-colors"
@@ -472,13 +477,26 @@ export default function FactionsClient() {
           editValues={editValues}
           onValueChange={(materialId, value) => setEditValues({ ...editValues, [materialId]: value })}
           onSave={(totals) => {
-            console.log('Saving totals:', totals)
+            console.log('=== SAVE STARTED ===')
+            console.log('Current editingFaction:', editingFaction)
+            console.log('Totals received:', totals)
+            console.log('Current tracker state before save:', Object.fromEntries(
+              Object.entries(totals).map(([id]) => [id, getState(id)])
+            ))
+
             Object.entries(totals).forEach(([materialId, total]) => {
-              console.log(`Setting ${materialId} need to ${total}`)
+              console.log(`→ Calling setNeed(${materialId}, ${total})`)
               setNeed(materialId, total)
             })
+
+            console.log('Tracker state after setNeed calls:', Object.fromEntries(
+              Object.entries(totals).map(([id]) => [id, getState(id)])
+            ))
+
+            console.log('Closing modal and clearing state')
             setEditingFaction(null)
             setEditValues({})
+            console.log('=== SAVE COMPLETE ===')
           }}
           onCancel={() => {
             setEditingFaction(null)
