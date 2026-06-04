@@ -14,10 +14,10 @@ function FactionEditModal({ faction, editValues, onValueChange, onSave, onCancel
   faction: typeof factions[0]
   editValues: Record<string, string>
   onValueChange: (materialId: string, value: string) => void
-  onSave: () => void
+  onSave: (totals: Record<string, number>) => void
   onCancel: () => void
 }) {
-  // Track individual number lists per material — stored as "materialId:num1,num2,num3"
+  // Track individual number lists per material
   const [numberLists, setNumberLists] = useState<Record<string, number[]>>({})
 
   // Initialize on first render
@@ -81,8 +81,14 @@ function FactionEditModal({ faction, editValues, onValueChange, onSave, onCancel
               return (
                 <div key={materialId}>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs text-gray-400 font-medium">{mat.name}</label>
-                    <div className="text-sm font-bold text-[#b8ff00]">Total: {total}</div>
+                    <div className="flex items-center gap-2 min-w-0">
+                      {mat.image && (
+                        <Image src={mat.image} alt={mat.name} width={24} height={24}
+                          className="rounded shrink-0 object-contain" />
+                      )}
+                      <label className="text-xs text-gray-400 font-medium truncate">{mat.name}</label>
+                    </div>
+                    <div className="text-sm font-bold text-[#b8ff00] shrink-0 ml-2">Total: {total}</div>
                   </div>
                   <div className="space-y-1.5">
                     {nums.map((n, idx) => (
@@ -128,7 +134,13 @@ function FactionEditModal({ faction, editValues, onValueChange, onSave, onCancel
             Cancel
           </button>
           <button
-            onClick={onSave}
+            onClick={() => {
+              const totals: Record<string, number> = {}
+              faction.materials.forEach(({ materialId }) => {
+                totals[materialId] = getTotal(materialId)
+              })
+              onSave(totals)
+            }}
             className="px-4 py-2 text-sm bg-[#b8ff00] text-black font-bold rounded hover:bg-[#a3e600] transition-colors"
           >
             Save all
@@ -467,18 +479,9 @@ export default function FactionsClient() {
           faction={factions.find(f => f.id === editingFaction)!}
           editValues={editValues}
           onValueChange={(materialId, value) => setEditValues({ ...editValues, [materialId]: value })}
-          onSave={() => {
-            const faction = factions.find(f => f.id === editingFaction)!
-            faction.materials.forEach(({ materialId }) => {
-              const val = editValues[materialId] ?? ''
-              try {
-                const total = val.includes('+')
-                  ? val.split('+').reduce((sum, n) => sum + (parseInt(n.trim()) || 0), 0)
-                  : parseInt(val)
-                if (total > 0) setNeed(materialId, total)
-              } catch {
-                //
-              }
+          onSave={(totals) => {
+            Object.entries(totals).forEach(([materialId, total]) => {
+              if (total >= 0) setNeed(materialId, total)
             })
             setEditingFaction(null)
             setEditValues({})
