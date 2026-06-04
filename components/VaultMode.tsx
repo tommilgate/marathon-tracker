@@ -321,7 +321,20 @@ export default function VaultMode({ userId }: VaultModeProps) {
   const [editing, setEditing] = useState<string | null>(null)
   const [hideEmpty, setHideEmpty] = useState(false)
   const [lockedTiers, setLockedTiers] = useState<Set<Tier>>(new Set())
+  const [scale, setScale] = useState(1)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Load/save scale preference
+  useEffect(() => {
+    if (!userId) return
+    const saved = localStorage.getItem(`marathon-vault-scale-${userId}`)
+    if (saved) setScale(parseFloat(saved))
+  }, [userId])
+
+  useEffect(() => {
+    if (!userId) return
+    localStorage.setItem(`marathon-vault-scale-${userId}`, String(scale))
+  }, [scale, userId])
 
   useEffect(() => {
     const saved = getSavedUser()
@@ -472,7 +485,22 @@ export default function VaultMode({ userId }: VaultModeProps) {
         <p className="text-xs text-gray-500">
           Click = +1 · Hold = type number · <kbd className="bg-gray-800 px-1 rounded">Delete</kbd> = −1 · Drag to reorder
         </p>
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-4 flex-wrap">
+          {/* Zoom slider */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-400 shrink-0">Size:</label>
+            <input
+              type="range"
+              min="0.6"
+              max="1.5"
+              step="0.1"
+              value={scale}
+              onChange={e => setScale(parseFloat(e.target.value))}
+              className="w-24 accent-[#b8ff00]"
+            />
+            <span className="text-xs text-gray-400 w-8 text-right">{Math.round(scale * 100)}%</span>
+          </div>
+
           <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer select-none shrink-0">
             <input
               type="checkbox"
@@ -514,8 +542,11 @@ export default function VaultMode({ userId }: VaultModeProps) {
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={orderedMaterials.map(m => m.id)} strategy={rectSortingStrategy}>
           <div
-            className="grid gap-2"
-            style={{ gridTemplateColumns: 'repeat(8, 1fr)' }}
+            className="grid gap-2 origin-top-left"
+            style={{
+              gridTemplateColumns: 'repeat(8, 1fr)',
+              transform: `scale(${scale})`,
+            }}
           >
             {orderedMaterials.map(m => {
               const s = getState(m.id)

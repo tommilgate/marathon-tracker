@@ -43,7 +43,20 @@ export default function UpgradesVault({ userId, selectedFaction }: UpgradesVault
   const { getState, spend } = useTracker(userId)
   const [flash, setFlash] = useState<Record<string, 'success' | 'warn'>>({})
   const [vaultOrder, setVaultOrder] = useState<string[]>([])
+  const [scale, setScale] = useState(1)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Load/save scale preference
+  useEffect(() => {
+    if (!userId) return
+    const saved = localStorage.getItem(`marathon-spending-scale-${userId}`)
+    if (saved) setScale(parseFloat(saved))
+  }, [userId])
+
+  useEffect(() => {
+    if (!userId) return
+    localStorage.setItem(`marathon-spending-scale-${userId}`, String(scale))
+  }, [scale, userId])
 
   // Load vault order with locks applied
   useEffect(() => {
@@ -111,13 +124,33 @@ export default function UpgradesVault({ userId, selectedFaction }: UpgradesVault
 
   return (
     <div ref={containerRef} className="mb-6">
-      <div className="mb-3">
+      <div className="mb-3 flex items-center justify-between">
         <p className="text-xs text-gray-500">
           Click an item to spend 1 — reduces both Have and Remaining
         </p>
+        {/* Zoom slider */}
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-gray-400 shrink-0">Size:</label>
+          <input
+            type="range"
+            min="0.6"
+            max="1.5"
+            step="0.1"
+            value={scale}
+            onChange={e => setScale(parseFloat(e.target.value))}
+            className="w-24 accent-[#b8ff00]"
+          />
+          <span className="text-xs text-gray-400 w-8 text-right">{Math.round(scale * 100)}%</span>
+        </div>
       </div>
 
-      <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(8, 1fr)' }}>
+      <div
+        className="grid gap-2 origin-top-left"
+        style={{
+          gridTemplateColumns: 'repeat(8, 1fr)',
+          transform: `scale(${scale})`,
+        }}
+      >
         {visibleMaterials.map(m => {
           const span = TIER_SPAN[m.tier]
           const state = getState(m.id)
