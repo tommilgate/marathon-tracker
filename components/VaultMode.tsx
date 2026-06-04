@@ -62,7 +62,7 @@ function VaultItem({ material: m, have, isSelected, isEditing, isLocked, onSelec
   const didLongPress = useRef(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: m.id, disabled: isLocked })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: m.id })
 
   // Pull dnd-kit's onPointerDown out so we can call it alongside ours
   const { onPointerDown: dndPointerDown, ...otherListeners } = (listeners ?? {}) as Record<string, unknown> & { onPointerDown?: React.PointerEventHandler }
@@ -72,9 +72,8 @@ function VaultItem({ material: m, have, isSelected, isEditing, isLocked, onSelec
     transition,
     gridColumn: `span ${span.col}`,
     gridRow: `span ${span.row}`,
-    opacity: isDragging ? 0.4 : isLocked ? 0.6 : 1,
+    opacity: isDragging ? 0.4 : 1,
     zIndex: isDragging ? 50 : undefined,
-    cursor: isLocked ? 'not-allowed' : 'pointer',
   }
 
   useEffect(() => {
@@ -82,7 +81,10 @@ function VaultItem({ material: m, have, isSelected, isEditing, isLocked, onSelec
   }, [isEditing])
 
   function handlePointerDown(e: React.PointerEvent) {
-    dndPointerDown?.(e)           // let dnd-kit start tracking
+    // Only allow dnd-kit if NOT locked
+    if (!isLocked) {
+      dndPointerDown?.(e)           // let dnd-kit start tracking
+    }
     didLongPress.current = false
     holdTimer.current = setTimeout(() => {
       didLongPress.current = true
@@ -132,6 +134,13 @@ function VaultItem({ material: m, have, isSelected, isEditing, isLocked, onSelec
       {have > 0 && !isEditing && (
         <div className="absolute bottom-0 right-0 bg-black/70 px-1.5 py-0.5 text-white text-xs font-bold z-10">
           ×{have}
+        </div>
+      )}
+
+      {/* Lock indicator */}
+      {isLocked && (
+        <div className="absolute top-1 right-1 text-lg z-20">
+          🔒
         </div>
       )}
 
