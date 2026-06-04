@@ -20,18 +20,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </Link>
 
           <nav className="flex gap-4 text-xs text-gray-400 items-center">
-            <Link href="/" className="hover:text-gray-100 transition-colors">Tracker</Link>
+            <Link href="/" className="hover:text-gray-100 transition-colors">Vault</Link>
+            <Link href="/factions" className="hover:text-gray-100 transition-colors">Factions</Link>
+            <Link href="/spending" className="hover:text-gray-100 transition-colors">Spending</Link>
             <Link href="/maxing" className="hover:text-gray-100 transition-colors">Maxing</Link>
-            <Link href="/upgrades" className="hover:text-gray-100 transition-colors">Upgrades</Link>
             <Link href="/maps" className="hover:text-gray-100 transition-colors">Maps</Link>
 
             {/* Other dropdown */}
             <div className="relative group">
-              <button className="hover:text-gray-100 transition-colors">Other ▼</button>
+              <button className="hover:text-gray-100 transition-colors">More ▼</button>
               <div className="absolute right-0 mt-0 w-48 bg-gray-900 border border-gray-800 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                <Link href="/factions" className="block w-full text-left px-4 py-2 text-xs hover:bg-gray-800 border-b border-gray-800">
-                  Factions
-                </Link>
                 <Link href="/cheat-sheet" className="block w-full text-left px-4 py-2 text-xs hover:bg-gray-800 border-b border-gray-800">
                   Cheat Sheet
                 </Link>
