@@ -545,8 +545,10 @@ export default function VaultMode({ userId }: VaultModeProps) {
             <div
               className="grid gap-2"
               style={{
-                gridTemplateColumns: 'repeat(8, 1fr)',
+                gridTemplateColumns: 'repeat(8, minmax(80px, 1fr))',
+                width: 'fit-content',
                 transform: `scale(${scale})`,
+                transformOrigin: 'top center',
               }}
             >
             {orderedMaterials.map(m => {
