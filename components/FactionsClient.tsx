@@ -587,12 +587,14 @@ export default function FactionsClient() {
                           <div className="flex-1 min-w-0">
                             <div className="text-white text-xs font-medium truncate">{mat.name}</div>
                             <div className="text-xs mt-0.5 text-gray-500">
-                              {remaining === 0 ? (
+                              {trackerNeed === 0 ? (
                                 <span className="text-green-400">✓ Done</span>
+                              ) : effectiveHave >= trackerNeed ? (
+                                <span className="text-[#b8ff00]">Ready</span>
                               ) : (
                                 <>
-                                  <span className="text-white font-medium">{remaining} needed</span>
-                                  {' · '}have {effectiveHave} usable
+                                  <span className="text-white font-medium">{trackerNeed - effectiveHave} needed</span>
+                                  {' · '}have {effectiveHave}
                                 </>
                               )}
                               {isShared && (
@@ -604,8 +606,8 @@ export default function FactionsClient() {
                           </div>
                         </Link>
 
-                        <div className={`text-sm font-bold shrink-0 ${complete ? 'text-green-400' : 'text-white'}`}>
-                          {complete ? '✓' : trackerNeed}
+                        <div className={`text-sm font-bold shrink-0 ${trackerNeed === 0 ? 'text-green-400' : effectiveHave >= trackerNeed ? 'text-[#b8ff00]' : 'text-white'}`}>
+                          {trackerNeed === 0 ? '✓' : Math.max(-999, trackerNeed - rawHave)}
                         </div>
                       </div>
                     )
