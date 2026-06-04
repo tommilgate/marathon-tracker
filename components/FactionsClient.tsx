@@ -9,70 +9,63 @@ import { useTracker, getSavedUser } from '@/lib/store'
 
 const FACTION_PRIORITY = ['cyberacme', 'nucaloric', 'traxus', 'mida', 'arachne', 'sekiguchi']
 
-// Edit modal for requirement totals
-function EditNeedModal({ materialName, currentValue, onSave, onCancel }: {
-  materialName: string
-  currentValue: number
-  onSave: (total: number) => void
+// Batch edit modal for all faction materials
+function FactionEditModal({ faction, editValues, onValueChange, onSave, onCancel }: {
+  faction: typeof factions[0]
+  editValues: Record<string, string>
+  onValueChange: (materialId: string, value: string) => void
+  onSave: () => void
   onCancel: () => void
 }) {
-  const [inputs, setInputs] = useState([String(currentValue)])
-  const total = inputs.reduce((sum, val) => sum + (parseInt(val.trim()) || 0), 0)
-
   return (
     <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-      <div className="bg-[#0f1117] border border-gray-700 rounded-lg w-full max-w-xs p-5">
-        <div className="mb-4">
-          <h3 className="text-white font-bold text-sm">{materialName}</h3>
-          <p className="text-xs text-gray-500 mt-1">Add individual amounts or edit the total</p>
+      <div className="bg-[#0f1117] border border-gray-700 rounded-lg w-full max-w-2xl max-h-[80vh] flex flex-col">
+        <div className="px-5 py-4 border-b border-gray-800">
+          <h3 className="text-white font-bold text-lg">{faction.name} — Edit all requirements</h3>
+          <p className="text-xs text-gray-500 mt-1">Type total amounts or use + expressions (7+6+9)</p>
         </div>
 
-        <div className="space-y-2 mb-4 max-h-64 overflow-y-auto">
-          {inputs.map((val, idx) => (
-            <div key={idx} className="flex gap-2 items-center">
-              <input
-                type="number"
-                value={val}
-                onChange={e => setInputs(inputs.map((v, i) => i === idx ? e.target.value : v))}
-                autoFocus={idx === inputs.length - 1}
-                className="flex-1 bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-white text-sm focus:outline-none focus:border-[#b8ff00]"
-                placeholder="0"
-              />
-              {inputs.length > 1 && (
-                <button
-                  onClick={() => setInputs(inputs.filter((_, i) => i !== idx))}
-                  className="text-gray-600 hover:text-red-400 text-lg leading-none"
-                >
-                  ×
-                </button>
-              )}
-            </div>
-          ))}
+        <div className="overflow-y-auto flex-1 px-5 py-3">
+          <div className="space-y-3">
+            {faction.materials.map(({ materialId, need }) => {
+              const mat = materials.find(m => m.id === materialId)
+              if (!mat) return null
+              return (
+                <div key={materialId} className="flex items-center gap-3">
+                  <label className="w-32 text-xs text-gray-400 truncate">{mat.name}</label>
+                  <input
+                    type="text"
+                    value={editValues[materialId] ?? String(need)}
+                    onChange={e => onValueChange(materialId, e.target.value)}
+                    placeholder={String(need)}
+                    className="flex-1 bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-white text-sm focus:outline-none focus:border-[#b8ff00]"
+                  />
+                  <div className="w-12 text-right text-xs font-bold text-[#b8ff00]">
+                    {(() => {
+                      const val = editValues[materialId] ?? String(need)
+                      return val.includes('+')
+                        ? val.split('+').reduce((sum, n) => sum + (parseInt(n.trim()) || 0), 0)
+                        : parseInt(val) || need
+                    })()}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
 
-        <div className="bg-gray-900/50 rounded px-3 py-2 mb-4 text-center">
-          <div className="text-xs text-gray-500">Total</div>
-          <div className="text-xl font-bold text-[#b8ff00]">{total}</div>
-        </div>
-
-        <div className="flex gap-2">
-          <button
-            onClick={() => setInputs([...inputs, ''])}
-            className="flex-1 px-3 py-1.5 text-xs border border-gray-700 text-gray-400 rounded hover:border-gray-500 transition-colors"
-          >
-            + Add
-          </button>
+        <div className="px-5 py-4 border-t border-gray-800 flex gap-2 justify-end">
           <button
             onClick={onCancel}
-            className="px-3 py-1.5 text-xs border border-gray-700 text-gray-400 rounded hover:border-gray-500 transition-colors"
+            className="px-4 py-2 text-sm border border-gray-700 text-gray-400 rounded hover:border-gray-500 transition-colors"
           >
             Cancel
           </button>
           <button
-            onClick={() => onSave(total)}
-            className="px-4 py-1.5 text-xs bg-[#b8ff00] text-black font-bold rounded hover:bg-[#a3e600] transition-colors"
+            onClick={onSave}
+            className="px-4 py-2 text-sm bg-[#b8ff00] text-black font-bold rounded hover:bg-[#a3e600] transition-colors"
           >
-            Save
+            Save all
           </button>
         </div>
       </div>
@@ -95,7 +88,8 @@ export default function FactionsClient() {
   const [userId, setUserId] = useState<string | null>(null)
   const [confirmed, setConfirmed] = useState<{ id: string; action: 'add' | 'remove' } | null>(null)
   const [activeFactions, setActiveFactions] = useState<Set<string>>(new Set())
-  const [editing, setEditing] = useState<{ factionId: string; materialId: string; value: string } | null>(null)
+  const [editingFaction, setEditingFaction] = useState<string | null>(null)
+  const [editValues, setEditValues] = useState<Record<string, string>>({})
 
   useEffect(() => {
     const u = getSavedUser()
@@ -290,12 +284,27 @@ export default function FactionsClient() {
                       )}
                     </div>
                   ) : isActive ? (
-                    <button
-                      onClick={() => setConfirmed({ id: faction.id, action: 'remove' })}
-                      className="text-xs border border-gray-700 text-gray-500 rounded px-3 py-1.5 hover:border-red-600 hover:text-red-400 transition-colors"
-                    >
-                      Remove
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setEditingFaction(faction.id)
+                          const vals: Record<string, string> = {}
+                          faction.materials.forEach(({ materialId, need }) => {
+                            vals[materialId] = String(need)
+                          })
+                          setEditValues(vals)
+                        }}
+                        className="text-xs border border-gray-700 text-gray-500 rounded px-3 py-1.5 hover:border-[#b8ff00] hover:text-[#b8ff00] transition-colors"
+                      >
+                        ✎ Edit all
+                      </button>
+                      <button
+                        onClick={() => setConfirmed({ id: faction.id, action: 'remove' })}
+                        className="text-xs border border-gray-700 text-gray-500 rounded px-3 py-1.5 hover:border-red-600 hover:text-red-400 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
                   ) : (
                     <button
                       onClick={() => setConfirmed({ id: faction.id, action: 'add' })}
@@ -336,14 +345,12 @@ export default function FactionsClient() {
                     const remaining = Math.max(0, need - effectiveHave)
                     const complete = effectiveHave >= need
                     const isShared = rawHave !== effectiveHave
-                    const isEditing = editing?.factionId === faction.id && editing?.materialId === materialId
 
                     return (
                       <div
                         key={materialId}
                         className={`flex items-center gap-3 rounded-lg px-3 py-2 border transition-colors ${
-                          isEditing ? 'border-[#b8ff00] bg-[#b8ff00]/5'
-                          : complete ? 'border-gray-800 opacity-40 hover:border-gray-700'
+                          complete ? 'border-gray-800 opacity-40 hover:border-gray-700'
                           : 'border-gray-700/50 hover:border-gray-600'
                         }`}
                       >
@@ -375,33 +382,9 @@ export default function FactionsClient() {
                           </div>
                         </Link>
 
-                        {isEditing && (
-                          <EditNeedModal
-                            materialName={mat.name}
-                            currentValue={need}
-                            onSave={(total) => {
-                              setNeed(materialId, total)
-                              setEditing(null)
-                            }}
-                            onCancel={() => setEditing(null)}
-                          />
-                        )}
-                        {!isEditing && (
-                          <div className="flex items-center gap-2 shrink-0">
-                            <div className={`text-sm font-bold ${complete ? 'text-green-400' : 'text-white'}`}>
-                              {complete ? '✓' : need}
-                            </div>
-                            {isActive && (
-                              <button
-                                onClick={() => setEditing({ factionId: faction.id, materialId, value: String(need) })}
-                                className="text-xs border border-gray-700 text-gray-500 rounded px-1.5 py-0.5 hover:border-gray-500 hover:text-gray-300 transition-colors"
-                                title="Edit required amount"
-                              >
-                                ✎
-                              </button>
-                            )}
-                          </div>
-                        )}
+                        <div className={`text-sm font-bold shrink-0 ${complete ? 'text-green-400' : 'text-white'}`}>
+                          {complete ? '✓' : need}
+                        </div>
                       </div>
                     )
                   })}
@@ -411,6 +394,35 @@ export default function FactionsClient() {
           )
         })}
       </div>
+
+      {/* Batch edit modal */}
+      {editingFaction && (
+        <FactionEditModal
+          faction={factions.find(f => f.id === editingFaction)!}
+          editValues={editValues}
+          onValueChange={(materialId, value) => setEditValues({ ...editValues, [materialId]: value })}
+          onSave={() => {
+            const faction = factions.find(f => f.id === editingFaction)!
+            faction.materials.forEach(({ materialId }) => {
+              const val = editValues[materialId] ?? ''
+              try {
+                const total = val.includes('+')
+                  ? val.split('+').reduce((sum, n) => sum + (parseInt(n.trim()) || 0), 0)
+                  : parseInt(val)
+                if (total > 0) setNeed(materialId, total)
+              } catch {
+                //
+              }
+            })
+            setEditingFaction(null)
+            setEditValues({})
+          }}
+          onCancel={() => {
+            setEditingFaction(null)
+            setEditValues({})
+          }}
+        />
+      )}
     </div>
   )
 }
