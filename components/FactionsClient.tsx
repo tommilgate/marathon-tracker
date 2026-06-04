@@ -9,6 +9,77 @@ import { useTracker, getSavedUser } from '@/lib/store'
 
 const FACTION_PRIORITY = ['cyberacme', 'nucaloric', 'traxus', 'mida', 'arachne', 'sekiguchi']
 
+// Edit modal for requirement totals
+function EditNeedModal({ materialName, currentValue, onSave, onCancel }: {
+  materialName: string
+  currentValue: number
+  onSave: (total: number) => void
+  onCancel: () => void
+}) {
+  const [inputs, setInputs] = useState([String(currentValue)])
+  const total = inputs.reduce((sum, val) => sum + (parseInt(val.trim()) || 0), 0)
+
+  return (
+    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+      <div className="bg-[#0f1117] border border-gray-700 rounded-lg w-full max-w-xs p-5">
+        <div className="mb-4">
+          <h3 className="text-white font-bold text-sm">{materialName}</h3>
+          <p className="text-xs text-gray-500 mt-1">Add individual amounts or edit the total</p>
+        </div>
+
+        <div className="space-y-2 mb-4 max-h-64 overflow-y-auto">
+          {inputs.map((val, idx) => (
+            <div key={idx} className="flex gap-2 items-center">
+              <input
+                type="number"
+                value={val}
+                onChange={e => setInputs(inputs.map((v, i) => i === idx ? e.target.value : v))}
+                autoFocus={idx === inputs.length - 1}
+                className="flex-1 bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-white text-sm focus:outline-none focus:border-[#b8ff00]"
+                placeholder="0"
+              />
+              {inputs.length > 1 && (
+                <button
+                  onClick={() => setInputs(inputs.filter((_, i) => i !== idx))}
+                  className="text-gray-600 hover:text-red-400 text-lg leading-none"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="bg-gray-900/50 rounded px-3 py-2 mb-4 text-center">
+          <div className="text-xs text-gray-500">Total</div>
+          <div className="text-xl font-bold text-[#b8ff00]">{total}</div>
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            onClick={() => setInputs([...inputs, ''])}
+            className="flex-1 px-3 py-1.5 text-xs border border-gray-700 text-gray-400 rounded hover:border-gray-500 transition-colors"
+          >
+            + Add
+          </button>
+          <button
+            onClick={onCancel}
+            className="px-3 py-1.5 text-xs border border-gray-700 text-gray-400 rounded hover:border-gray-500 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onSave(total)}
+            className="px-4 py-1.5 text-xs bg-[#b8ff00] text-black font-bold rounded hover:bg-[#a3e600] transition-colors"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function activeKey(userId: string) { return `marathon-active-factions-${userId}` }
 
 function loadActive(userId: string): Set<string> {
@@ -286,65 +357,41 @@ export default function FactionsClient() {
                           )}
                           <div className="flex-1 min-w-0">
                             <div className="text-white text-xs font-medium truncate">{mat.name}</div>
-                            <div className="text-xs mt-0.5">
-                              {complete ? (
-                                <span className="text-green-400">✓ Complete</span>
+                            <div className="text-xs mt-0.5 text-gray-500">
+                              {remaining === 0 ? (
+                                <span className="text-green-400">✓ Need 0 more</span>
                               ) : (
-                                <span className="text-gray-500">
-                                  <span className="text-white font-medium">{remaining} left</span>
-                                  {' · '}have {effectiveHave}
-                                  {isShared && isActive && (
-                                    <span className="text-yellow-600"> ({rawHave} total)</span>
-                                  )}
-                                </span>
+                                <>
+                                  <span className="text-white font-medium">{remaining} needed</span>
+                                  {' · '}have {effectiveHave} usable
+                                </>
+                              )}
+                              {isShared && (
+                                <div className="text-xs text-yellow-600 mt-0.5">
+                                  {rawHave - effectiveHave} held for higher priority
+                                </div>
                               )}
                             </div>
                           </div>
                         </Link>
 
-                        {isEditing ? (
-                          <div className="flex items-center gap-1 shrink-0">
-                            <input
-                              type="text"
-                              value={editing.value}
-                              onChange={e => setEditing({ ...editing, value: e.target.value })}
-                              autoFocus
-                              placeholder="7+6+9"
-                              className="w-20 bg-gray-800 border border-[#b8ff00] rounded px-1 py-0.5 text-white text-xs text-center focus:outline-none"
-                              onKeyDown={e => {
-                                if (e.key === 'Enter') {
-                                  try {
-                                    const total = editing.value.split('+').reduce((sum, n) => sum + (parseInt(n.trim()) || 0), 0)
-                                    setNeed(materialId, total || need)
-                                  } catch {
-                                    setNeed(materialId, parseInt(editing.value) || need)
-                                  }
-                                  setEditing(null)
-                                }
-                                if (e.key === 'Escape') setEditing(null)
-                              }}
-                            />
-                            <button
-                              onClick={() => {
-                                try {
-                                  const total = editing.value.split('+').reduce((sum, n) => sum + (parseInt(n.trim()) || 0), 0)
-                                  setNeed(materialId, total || need)
-                                } catch {
-                                  setNeed(materialId, parseInt(editing.value) || need)
-                                }
-                                setEditing(null)
-                              }}
-                              className="px-1.5 py-0.5 text-xs bg-[#b8ff00] text-black font-bold rounded hover:bg-[#a3e600]"
-                            >
-                              ✓
-                            </button>
-                          </div>
-                        ) : (
+                        {isEditing && (
+                          <EditNeedModal
+                            materialName={mat.name}
+                            currentValue={need}
+                            onSave={(total) => {
+                              setNeed(materialId, total)
+                              setEditing(null)
+                            }}
+                            onCancel={() => setEditing(null)}
+                          />
+                        )}
+                        {!isEditing && (
                           <div className="flex items-center gap-2 shrink-0">
                             <div className={`text-sm font-bold ${complete ? 'text-green-400' : 'text-white'}`}>
                               {complete ? '✓' : need}
                             </div>
-                            {isActive && !complete && (
+                            {isActive && (
                               <button
                                 onClick={() => setEditing({ factionId: faction.id, materialId, value: String(need) })}
                                 className="text-xs border border-gray-700 text-gray-500 rounded px-1.5 py-0.5 hover:border-gray-500 hover:text-gray-300 transition-colors"
