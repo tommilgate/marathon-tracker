@@ -144,13 +144,14 @@ export default function UpgradesVault({ userId, selectedFaction }: UpgradesVault
         </div>
       </div>
 
-      <div
-        className="grid gap-2 origin-top-left"
-        style={{
-          gridTemplateColumns: 'repeat(8, 1fr)',
-          transform: `scale(${scale})`,
-        }}
-      >
+      <div className="flex justify-center">
+        <div
+          className="grid gap-2"
+          style={{
+            gridTemplateColumns: 'repeat(8, 1fr)',
+            transform: `scale(${scale})`,
+          }}
+        >
         {visibleMaterials.map(m => {
           const span = TIER_SPAN[m.tier]
           const state = getState(m.id)
@@ -206,6 +207,7 @@ export default function UpgradesVault({ userId, selectedFaction }: UpgradesVault
             </div>
           )
         })}
+        </div>
       </div>
 
       {visibleMaterials.length === 0 && (

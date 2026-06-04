@@ -541,13 +541,14 @@ export default function VaultMode({ userId }: VaultModeProps) {
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={orderedMaterials.map(m => m.id)} strategy={rectSortingStrategy}>
-          <div
-            className="grid gap-2 origin-top-left"
-            style={{
-              gridTemplateColumns: 'repeat(8, 1fr)',
-              transform: `scale(${scale})`,
-            }}
-          >
+          <div className="flex justify-center">
+            <div
+              className="grid gap-2"
+              style={{
+                gridTemplateColumns: 'repeat(8, 1fr)',
+                transform: `scale(${scale})`,
+              }}
+            >
             {orderedMaterials.map(m => {
               const s = getState(m.id)
               const isLocked = lockedTiers.has(m.tier)
@@ -569,6 +570,7 @@ export default function VaultMode({ userId }: VaultModeProps) {
                 />
               )
             })}
+            </div>
           </div>
         </SortableContext>
       </DndContext>
