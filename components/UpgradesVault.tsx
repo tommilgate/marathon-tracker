@@ -39,6 +39,11 @@ interface UpgradesVaultProps {
   selectedFaction: string | null
 }
 
+interface UndoEntry {
+  materialId: string
+  factionId?: string
+}
+
 export default function UpgradesVault({ userId, selectedFaction }: UpgradesVaultProps) {
   const { getState, spend, setNeed } = useTracker(userId)
   const [flash, setFlash] = useState<Record<string, 'success' | 'warn'>>({})
@@ -46,6 +51,7 @@ export default function UpgradesVault({ userId, selectedFaction }: UpgradesVault
   const [scale, setScale] = useState(1)
   const [factionSelector, setFactionSelector] = useState<{ materialId: string; factions: typeof factions } | null>(null)
   const [activeFactions, setActiveFactions] = useState<Set<string>>(new Set())
+  const [undoHistory, setUndoHistory] = useState<UndoEntry[]>([])
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Load active factions
@@ -125,16 +131,16 @@ export default function UpgradesVault({ userId, selectedFaction }: UpgradesVault
       f => f.materials.some(m => m.materialId === materialId) && activeFactions.has(f.id)
     )
 
-    if (factionsWithMaterial.length > 1) {
-      // Show faction selector
-      setFactionSelector({ materialId, factions: factionsWithMaterial })
-    } else if (factionsWithMaterial.length === 1) {
-      // Single faction, reduce its need
-      spendFromFaction(materialId, factionsWithMaterial[0].id)
+    // Auto-pick first faction for rapid clicking (user can undo if wrong)
+    const factionId = factionsWithMaterial.length > 0 ? factionsWithMaterial[0].id : undefined
+
+    if (factionId) {
+      spendFromFaction(materialId, factionId)
     } else {
       // Not in any active faction, just spend normally
       spend(materialId, 1)
       showSpendFlash(materialId)
+      setUndoHistory([{ materialId }, ...undoHistory.slice(0, 9)])
     }
   }
 
@@ -150,13 +156,45 @@ export default function UpgradesVault({ userId, selectedFaction }: UpgradesVault
     setNeed(materialId, Math.max(0, state.need - 1))
     spend(materialId, 1)
     showSpendFlash(materialId)
-    setFactionSelector(null)
+    setUndoHistory([{ materialId, factionId }, ...undoHistory.slice(0, 9)])
   }
 
   function showSpendFlash(materialId: string) {
     setFlash(f => ({ ...f, [materialId]: 'success' }))
-    setTimeout(() => setFlash(f => { const n = { ...f }; delete n[materialId]; return n }), 600)
+    setTimeout(() => setFlash(f => { const n = { ...f }; delete n[materialId]; return n }), 400)
   }
+
+  function handleUndo() {
+    if (undoHistory.length === 0) return
+    const [lastEntry, ...rest] = undoHistory
+    setUndoHistory(rest)
+
+    const state = getState(lastEntry.materialId)
+
+    // Reverse the spend
+    if (lastEntry.factionId) {
+      // Was a faction spend, restore the need
+      const faction = factions.find(f => f.id === lastEntry.factionId)
+      if (faction) {
+        setNeed(lastEntry.materialId, state.need + 1)
+      }
+    }
+
+    // Restore the have count
+    spend(lastEntry.materialId, -1)
+    setFlash(f => ({ ...f, [lastEntry.materialId]: 'warn' }))
+  }
+
+  useEffect(() => {
+    function handleKeydown(e: KeyboardEvent) {
+      if (e.key === 'Delete' && undoHistory.length > 0) {
+        e.preventDefault()
+        handleUndo()
+      }
+    }
+    window.addEventListener('keydown', handleKeydown)
+    return () => window.removeEventListener('keydown', handleKeydown)
+  }, [undoHistory])
 
   useEffect(() => {
     function handleOutside(e: MouseEvent) {
@@ -296,6 +334,13 @@ export default function UpgradesVault({ userId, selectedFaction }: UpgradesVault
           <div className="text-gray-400 text-sm">
             {selectedFaction ? "You don't have any of these materials" : "No materials to spend"}
           </div>
+        </div>
+      )}
+
+      {/* Undo indicator */}
+      {undoHistory.length > 0 && (
+        <div className="mt-4 text-xs text-gray-500 px-2 py-2 border border-gray-800 rounded-lg bg-gray-900/50">
+          Press <span className="text-[#b8ff00] font-bold">Delete</span> to undo {undoHistory[0].materialId && materials.find(m => m.id === undoHistory[0].materialId)?.name} {undoHistory.length > 1 && `(+${undoHistory.length - 1} more)`}
         </div>
       )}
     </div>
