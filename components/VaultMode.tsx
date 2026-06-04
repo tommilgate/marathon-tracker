@@ -137,13 +137,6 @@ function VaultItem({ material: m, have, isSelected, isEditing, isLocked, onSelec
         </div>
       )}
 
-      {/* Lock indicator */}
-      {isLocked && (
-        <div className="absolute top-1 right-1 text-lg z-20">
-          🔒
-        </div>
-      )}
-
       {/* Inline edit overlay (long press) */}
       {isEditing && (
         <div
