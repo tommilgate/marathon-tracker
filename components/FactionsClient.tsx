@@ -305,15 +305,20 @@ export default function FactionsClient() {
                         {isEditing ? (
                           <div className="flex items-center gap-1 shrink-0">
                             <input
-                              type="number"
-                              min={1}
+                              type="text"
                               value={editing.value}
                               onChange={e => setEditing({ ...editing, value: e.target.value })}
                               autoFocus
-                              className="w-12 bg-gray-800 border border-[#b8ff00] rounded px-1 py-0.5 text-white text-xs text-center focus:outline-none"
+                              placeholder="7+6+9"
+                              className="w-20 bg-gray-800 border border-[#b8ff00] rounded px-1 py-0.5 text-white text-xs text-center focus:outline-none"
                               onKeyDown={e => {
                                 if (e.key === 'Enter') {
-                                  setNeed(materialId, parseInt(editing.value) || need)
+                                  try {
+                                    const total = editing.value.split('+').reduce((sum, n) => sum + (parseInt(n.trim()) || 0), 0)
+                                    setNeed(materialId, total || need)
+                                  } catch {
+                                    setNeed(materialId, parseInt(editing.value) || need)
+                                  }
                                   setEditing(null)
                                 }
                                 if (e.key === 'Escape') setEditing(null)
@@ -321,7 +326,12 @@ export default function FactionsClient() {
                             />
                             <button
                               onClick={() => {
-                                setNeed(materialId, parseInt(editing.value) || need)
+                                try {
+                                  const total = editing.value.split('+').reduce((sum, n) => sum + (parseInt(n.trim()) || 0), 0)
+                                  setNeed(materialId, total || need)
+                                } catch {
+                                  setNeed(materialId, parseInt(editing.value) || need)
+                                }
                                 setEditing(null)
                               }}
                               className="px-1.5 py-0.5 text-xs bg-[#b8ff00] text-black font-bold rounded hover:bg-[#a3e600]"
