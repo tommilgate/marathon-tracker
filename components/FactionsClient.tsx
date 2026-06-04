@@ -20,21 +20,19 @@ function FactionEditModal({ faction, editValues, onValueChange, onSave, onCancel
   // Track individual number lists per material
   const [numberLists, setNumberLists] = useState<Record<string, number[]>>({})
 
-  // Initialize on first render
+  // Initialize on open or faction change
   useEffect(() => {
-    if (Object.keys(numberLists).length === 0) {
-      const init: Record<string, number[]> = {}
-      faction.materials.forEach(({ materialId, need }) => {
-        const stored = editValues[materialId]
-        if (stored) {
-          init[materialId] = stored.split('+').map(n => parseInt(n.trim())).filter(n => !isNaN(n))
-        } else {
-          init[materialId] = [need]
-        }
-      })
-      setNumberLists(init)
-    }
-  }, [])
+    const init: Record<string, number[]> = {}
+    faction.materials.forEach(({ materialId, need }) => {
+      const stored = editValues[materialId]
+      if (stored) {
+        init[materialId] = stored.split('+').map(n => parseInt(n.trim())).filter(n => !isNaN(n))
+      } else {
+        init[materialId] = [need]
+      }
+    })
+    setNumberLists(init)
+  }, [faction.id, editValues])
 
   function updateNumber(materialId: string, index: number, value: string) {
     const nums = [...(numberLists[materialId] || [])]
@@ -480,8 +478,10 @@ export default function FactionsClient() {
           editValues={editValues}
           onValueChange={(materialId, value) => setEditValues({ ...editValues, [materialId]: value })}
           onSave={(totals) => {
+            console.log('Saving totals:', totals)
             Object.entries(totals).forEach(([materialId, total]) => {
-              if (total >= 0) setNeed(materialId, total)
+              console.log(`Setting ${materialId} need to ${total}`)
+              setNeed(materialId, total)
             })
             setEditingFaction(null)
             setEditValues({})
