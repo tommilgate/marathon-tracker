@@ -574,16 +574,23 @@ export default function FactionsClient() {
                           href={`/materials/${materialId}`}
                           className="flex items-center gap-3 flex-1 min-w-0"
                         >
-                          {mat.image && (
-                            <Image
-                              src={mat.image}
-                              alt={mat.name}
-                              width={48}
-                              height={48}
-                              className="rounded shrink-0 object-contain"
-                              style={{ border: `3px solid ${TIER_BORDER_COLORS[mat.tier]}` }}
-                            />
-                          )}
+                          <div className="relative shrink-0">
+                            {mat.image && (
+                              <Image
+                                src={mat.image}
+                                alt={mat.name}
+                                width={48}
+                                height={48}
+                                className="rounded object-contain"
+                                style={{ border: `3px solid ${TIER_BORDER_COLORS[mat.tier]}` }}
+                              />
+                            )}
+                            {effectiveHave > 0 && (
+                              <div className="absolute bottom-0 right-0 bg-black/80 px-1.5 py-0.5 text-white text-xs font-bold rounded-sm z-10">
+                                ×{effectiveHave}
+                              </div>
+                            )}
+                          </div>
                           <div className="flex-1 min-w-0">
                             <div className="text-white text-xs font-medium truncate">{mat.name}</div>
                             <div className="text-xs mt-0.5 text-gray-500">
@@ -592,10 +599,7 @@ export default function FactionsClient() {
                               ) : effectiveHave >= trackerNeed ? (
                                 <span className="text-[#b8ff00]">Ready</span>
                               ) : (
-                                <>
-                                  <span className="text-white font-medium">{trackerNeed} needed</span>
-                                  {' · '}have {effectiveHave}
-                                </>
+                                <span className="text-white font-medium">{trackerNeed} needed</span>
                               )}
                               {isShared && (
                                 <div className="text-xs text-yellow-600 mt-0.5">
