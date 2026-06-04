@@ -5,6 +5,13 @@ import Image from 'next/image'
 import { materials, type Tier } from '@/lib/materials'
 import { useTracker } from '@/lib/store'
 import { factions } from '@/lib/factions'
+import { getAllLockedTierOrders } from '@/lib/supabase'
+
+const ORDER_KEY = 'marathon-vault-order'
+function loadVaultOrder(): string[] {
+  if (typeof window === 'undefined') return []
+  try { return JSON.parse(localStorage.getItem(ORDER_KEY) || '[]') } catch { return [] }
+}
 
 const TIER_SPAN: Record<Tier, { col: number; row: number }> = {
   prestige: { col: 2, row: 2 },
@@ -22,14 +29,53 @@ interface UpgradesVaultProps {
 export default function UpgradesVault({ userId, selectedFaction }: UpgradesVaultProps) {
   const { getState, spend } = useTracker(userId)
   const [flash, setFlash] = useState<Record<string, 'success' | 'warn'>>({})
+  const [vaultOrder, setVaultOrder] = useState<string[]>([])
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const visibleMaterials = selectedFaction
-    ? factions.find(f => f.id === selectedFaction)?.materials
-        .map(({ materialId }) => materials.find(m => m.id === materialId))
-        .filter((m): m is typeof materials[0] => !!m && getState(m.id).have > 0)
-      || []
-    : materials.filter(m => getState(m.id).have > 0)
+  // Load vault order with locks applied
+  useEffect(() => {
+    async function loadOrder() {
+      const saved = loadVaultOrder()
+      const lockedOrders = await getAllLockedTierOrders()
+
+      let finalOrder: string[] = []
+      const TIER_ORDER: Tier[] = ['prestige', 'superior', 'deluxe', 'enhanced', 'standard']
+
+      TIER_ORDER.forEach(tier => {
+        const tierMaterials = materials.filter(m => m.tier === tier).map(m => m.id)
+        if (lockedOrders[tier]) {
+          finalOrder = [...finalOrder, ...lockedOrders[tier]]
+        } else {
+          const tierSaved = saved.filter(id => tierMaterials.includes(id))
+          const tierMissing = tierMaterials.filter(id => !tierSaved.includes(id))
+          finalOrder = [...finalOrder, ...tierSaved, ...tierMissing]
+        }
+      })
+
+      setVaultOrder(finalOrder)
+    }
+    loadOrder()
+  }, [])
+
+  const visibleMaterials = (() => {
+    let items = selectedFaction
+      ? factions.find(f => f.id === selectedFaction)?.materials
+          .map(({ materialId }) => materials.find(m => m.id === materialId))
+          .filter((m): m is typeof materials[0] => !!m && getState(m.id).have > 0)
+        || []
+      : materials.filter(m => getState(m.id).have > 0)
+
+    // Sort by vault order
+    if (vaultOrder.length > 0) {
+      items = items.sort((a, b) => {
+        const indexA = vaultOrder.indexOf(a.id)
+        const indexB = vaultOrder.indexOf(b.id)
+        return (indexA === -1 ? 9999 : indexA) - (indexB === -1 ? 9999 : indexB)
+      })
+    }
+
+    return items
+  })()
 
   function handleSpend(materialId: string) {
     const state = getState(materialId)

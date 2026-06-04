@@ -52,13 +52,17 @@ interface ItemProps {
   onCancelEdit: () => void
 }
 
-function VaultItem({ material: m, have, isSelected, isEditing, onSelect, onEdit, onCommit, onCancelEdit }: ItemProps) {
+interface VaultItemProps extends ItemProps {
+  isLocked?: boolean
+}
+
+function VaultItem({ material: m, have, isSelected, isEditing, isLocked, onSelect, onEdit, onCommit, onCancelEdit }: VaultItemProps) {
   const span = TIER_SPAN[m.tier]
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const didLongPress = useRef(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: m.id })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: m.id, disabled: isLocked })
 
   // Pull dnd-kit's onPointerDown out so we can call it alongside ours
   const { onPointerDown: dndPointerDown, ...otherListeners } = (listeners ?? {}) as Record<string, unknown> & { onPointerDown?: React.PointerEventHandler }
@@ -68,8 +72,9 @@ function VaultItem({ material: m, have, isSelected, isEditing, onSelect, onEdit,
     transition,
     gridColumn: `span ${span.col}`,
     gridRow: `span ${span.row}`,
-    opacity: isDragging ? 0.4 : 1,
+    opacity: isDragging ? 0.4 : isLocked ? 0.6 : 1,
     zIndex: isDragging ? 50 : undefined,
+    cursor: isLocked ? 'not-allowed' : 'pointer',
   }
 
   useEffect(() => {
@@ -349,8 +354,19 @@ export default function VaultMode({ userId }: VaultModeProps) {
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (over && active.id !== over.id) {
-      const oldIndex = order.indexOf(active.id as string)
-      const newIndex = order.indexOf(over.id as string)
+      const activeId = active.id as string
+      const overId = over.id as string
+
+      // Get tier of both items
+      const activeMat = materials.find(m => m.id === activeId)
+      const overMat = materials.find(m => m.id === overId)
+
+      // Don't allow dragging if either item is in a locked tier
+      if (activeMat && lockedTiers.has(activeMat.tier)) return
+      if (overMat && lockedTiers.has(overMat.tier)) return
+
+      const oldIndex = order.indexOf(activeId)
+      const newIndex = order.indexOf(overId)
       const next = arrayMove(order, oldIndex, newIndex)
       setOrder(next)
       saveOrder(next)
@@ -458,6 +474,7 @@ export default function VaultMode({ userId }: VaultModeProps) {
           >
             {orderedMaterials.map(m => {
               const s = getState(m.id)
+              const isLocked = lockedTiers.has(m.tier)
               return (
                 <VaultItem
                   key={m.id}
@@ -465,6 +482,7 @@ export default function VaultMode({ userId }: VaultModeProps) {
                   have={s.have}
                   isSelected={selected === m.id}
                   isEditing={editing === m.id}
+                  isLocked={isLocked}
                   onSelect={() => {
                     if (selected === m.id) adjustHave(m.id, 1)
                     else setSelected(m.id)
