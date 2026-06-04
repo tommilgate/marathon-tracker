@@ -244,8 +244,9 @@ export default function FactionsClient() {
   function getTotalRemaining(factionId: string): number {
     const faction = factions.find(f => f.id === factionId)
     if (!faction) return 0
-    return faction.materials.reduce((sum, { materialId, need }) => {
-      return sum + Math.max(0, need - getEffectiveHave(materialId, factionId))
+    return faction.materials.reduce((sum, { materialId }) => {
+      const trackerNeed = getState(materialId).need
+      return sum + Math.max(0, trackerNeed - getEffectiveHave(materialId, factionId))
     }, 0)
   }
 
@@ -253,9 +254,10 @@ export default function FactionsClient() {
     const faction = factions.find(f => f.id === factionId)
     if (!faction) return { done: 0, total: 0 }
     const total = faction.materials.length
-    const done = faction.materials.filter(({ materialId, need }) =>
-      getEffectiveHave(materialId, factionId) >= need
-    ).length
+    const done = faction.materials.filter(({ materialId }) => {
+      const trackerNeed = getState(materialId).need
+      return getEffectiveHave(materialId, factionId) >= trackerNeed
+    }).length
     return { done, total }
   }
 
@@ -419,13 +421,14 @@ export default function FactionsClient() {
                 <p className="text-gray-600 text-sm">Requirements not yet confirmed.</p>
               ) : (
                 <div className="space-y-2">
-                  {faction.materials.map(({ materialId, need }) => {
+                  {faction.materials.map(({ materialId }) => {
                     const mat = getMaterialById(materialId)
                     if (!mat) return null
+                    const trackerNeed = getState(materialId).need
                     const effectiveHave = getEffectiveHave(materialId, faction.id)
                     const rawHave = getState(materialId).have
-                    const remaining = Math.max(0, need - effectiveHave)
-                    const complete = effectiveHave >= need
+                    const remaining = Math.max(0, trackerNeed - effectiveHave)
+                    const complete = effectiveHave >= trackerNeed
                     const isShared = rawHave !== effectiveHave
 
                     return (
@@ -465,7 +468,7 @@ export default function FactionsClient() {
                         </Link>
 
                         <div className={`text-sm font-bold shrink-0 ${complete ? 'text-green-400' : 'text-white'}`}>
-                          {complete ? '✓' : need}
+                          {complete ? '✓' : trackerNeed}
                         </div>
                       </div>
                     )
