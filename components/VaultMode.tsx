@@ -21,8 +21,6 @@ import { materials, type Material, type Tier, TIER_ORDER, TIER_COLORS } from '@/
 import { useTracker, getSavedUser } from '@/lib/store'
 import { getLockedTierOrder, setLockedTierOrder, getAllLockedTierOrders } from '@/lib/supabase'
 
-const TIER_ORDER: Tier[] = ['prestige', 'superior', 'deluxe', 'enhanced', 'standard']
-
 const TIER_SPAN: Record<Tier, { col: number; row: number }> = {
   prestige: { col: 2, row: 2 },
   superior: { col: 2, row: 2 },
