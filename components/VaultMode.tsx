@@ -392,7 +392,12 @@ export default function VaultMode({ userId }: VaultModeProps) {
   }, [selected, editing, adjustHave])
 
   async function lockTierOrder(tier: Tier) {
-    if (!user) return
+    if (!user) {
+      console.log('❌ No user logged in')
+      return
+    }
+
+    console.log(`🔒 Locking tier: ${tier}`)
 
     // Get all materials for this tier in current order
     const tierMaterials = order.filter(id => {
@@ -400,9 +405,22 @@ export default function VaultMode({ userId }: VaultModeProps) {
       return mat?.tier === tier
     })
 
-    // Save as locked order
-    await setLockedTierOrder(tier, tierMaterials, user.id)
-    setLockedTiers(prev => new Set(prev).add(tier))
+    console.log(`Materials in ${tier}:`, tierMaterials)
+
+    try {
+      // Save as locked order
+      await setLockedTierOrder(tier, tierMaterials, user.id)
+      console.log(`✅ Saved to database`)
+
+      setLockedTiers(prev => {
+        const next = new Set(prev)
+        next.add(tier)
+        console.log(`✅ Updated lockedTiers:`, Array.from(next))
+        return next
+      })
+    } catch (err) {
+      console.error(`❌ Error locking tier:`, err)
+    }
   }
 
   function getTierLabel(tier: Tier): string {
