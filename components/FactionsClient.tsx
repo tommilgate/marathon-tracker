@@ -17,36 +17,102 @@ function FactionEditModal({ faction, editValues, onValueChange, onSave, onCancel
   onSave: () => void
   onCancel: () => void
 }) {
+  // Track individual number lists per material — stored as "materialId:num1,num2,num3"
+  const [numberLists, setNumberLists] = useState<Record<string, number[]>>({})
+
+  // Initialize on first render
+  useEffect(() => {
+    if (Object.keys(numberLists).length === 0) {
+      const init: Record<string, number[]> = {}
+      faction.materials.forEach(({ materialId, need }) => {
+        const stored = editValues[materialId]
+        if (stored) {
+          init[materialId] = stored.split('+').map(n => parseInt(n.trim())).filter(n => !isNaN(n))
+        } else {
+          init[materialId] = [need]
+        }
+      })
+      setNumberLists(init)
+    }
+  }, [])
+
+  function updateNumber(materialId: string, index: number, value: string) {
+    const nums = [...(numberLists[materialId] || [])]
+    const parsed = parseInt(value) || 0
+    nums[index] = parsed
+    setNumberLists({ ...numberLists, [materialId]: nums })
+    // Update editValues with the joined string
+    onValueChange(materialId, nums.filter(n => n > 0).join('+'))
+  }
+
+  function addNumber(materialId: string) {
+    const nums = [...(numberLists[materialId] || [])]
+    nums.push(0)
+    setNumberLists({ ...numberLists, [materialId]: nums })
+  }
+
+  function removeNumber(materialId: string, index: number) {
+    const nums = [...(numberLists[materialId] || [])]
+    nums.splice(index, 1)
+    setNumberLists({ ...numberLists, [materialId]: nums })
+    onValueChange(materialId, nums.filter(n => n > 0).join('+'))
+  }
+
+  function getTotal(materialId: string): number {
+    return (numberLists[materialId] || []).reduce((sum, n) => sum + n, 0)
+  }
+
   return (
     <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
       <div className="bg-[#0f1117] border border-gray-700 rounded-lg w-full max-w-2xl max-h-[80vh] flex flex-col">
         <div className="px-5 py-4 border-b border-gray-800">
           <h3 className="text-white font-bold text-lg">{faction.name} — Edit all requirements</h3>
-          <p className="text-xs text-gray-500 mt-1">Type total amounts or use + expressions (7+6+9)</p>
+          <p className="text-xs text-gray-500 mt-1">Type amounts — new boxes appear as you fill them</p>
         </div>
 
         <div className="overflow-y-auto flex-1 px-5 py-3">
-          <div className="space-y-3">
-            {faction.materials.map(({ materialId, need }) => {
+          <div className="space-y-4">
+            {faction.materials.map(({ materialId }) => {
               const mat = materials.find(m => m.id === materialId)
               if (!mat) return null
+              const nums = numberLists[materialId] || []
+              const total = getTotal(materialId)
+
               return (
-                <div key={materialId} className="flex items-center gap-3">
-                  <label className="w-32 text-xs text-gray-400 truncate">{mat.name}</label>
-                  <input
-                    type="text"
-                    value={editValues[materialId] ?? String(need)}
-                    onChange={e => onValueChange(materialId, e.target.value)}
-                    placeholder={String(need)}
-                    className="flex-1 bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-white text-sm focus:outline-none focus:border-[#b8ff00]"
-                  />
-                  <div className="w-12 text-right text-xs font-bold text-[#b8ff00]">
-                    {(() => {
-                      const val = editValues[materialId] ?? String(need)
-                      return val.includes('+')
-                        ? val.split('+').reduce((sum, n) => sum + (parseInt(n.trim()) || 0), 0)
-                        : parseInt(val) || need
-                    })()}
+                <div key={materialId}>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs text-gray-400 font-medium">{mat.name}</label>
+                    <div className="text-sm font-bold text-[#b8ff00]">Total: {total}</div>
+                  </div>
+                  <div className="space-y-1.5">
+                    {nums.map((n, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          value={n || ''}
+                          onChange={e => updateNumber(materialId, idx, e.target.value)}
+                          autoFocus={idx === nums.length - 1 && n === 0}
+                          placeholder="0"
+                          className="flex-1 bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-white text-sm focus:outline-none focus:border-[#b8ff00]"
+                        />
+                        {nums.length > 1 && (
+                          <button
+                            onClick={() => removeNumber(materialId, idx)}
+                            className="text-gray-600 hover:text-red-400 text-lg leading-none w-6"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {nums.length === 0 || (nums.length > 0 && nums[nums.length - 1] > 0) ? (
+                      <button
+                        onClick={() => addNumber(materialId)}
+                        className="w-full text-xs py-1.5 border border-gray-700 text-gray-500 rounded hover:border-gray-500 hover:text-gray-300 transition-colors"
+                      >
+                        + Add another
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               )
