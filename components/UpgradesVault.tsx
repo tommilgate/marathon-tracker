@@ -40,11 +40,24 @@ interface UpgradesVaultProps {
 }
 
 export default function UpgradesVault({ userId, selectedFaction }: UpgradesVaultProps) {
-  const { getState, spend } = useTracker(userId)
+  const { getState, spend, setNeed } = useTracker(userId)
   const [flash, setFlash] = useState<Record<string, 'success' | 'warn'>>({})
   const [vaultOrder, setVaultOrder] = useState<string[]>([])
   const [scale, setScale] = useState(1)
+  const [factionSelector, setFactionSelector] = useState<{ materialId: string; factions: typeof factions } | null>(null)
+  const [activeFactions, setActiveFactions] = useState<Set<string>>(new Set())
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Load active factions
+  useEffect(() => {
+    if (!userId) return
+    const saved = localStorage.getItem(`marathon-active-factions-${userId}`)
+    if (saved) {
+      try {
+        setActiveFactions(new Set(JSON.parse(saved)))
+      } catch {}
+    }
+  }, [userId])
 
   // Load/save scale preference
   useEffect(() => {
@@ -107,7 +120,40 @@ export default function UpgradesVault({ userId, selectedFaction }: UpgradesVault
     const state = getState(materialId)
     if (state.have <= 0) return
 
+    // Check if material is in multiple active factions
+    const factionsWithMaterial = factions.filter(
+      f => f.materials.some(m => m.materialId === materialId) && activeFactions.has(f.id)
+    )
+
+    if (factionsWithMaterial.length > 1) {
+      // Show faction selector
+      setFactionSelector({ materialId, factions: factionsWithMaterial })
+    } else if (factionsWithMaterial.length === 1) {
+      // Single faction, reduce its need
+      spendFromFaction(materialId, factionsWithMaterial[0].id)
+    } else {
+      // Not in any active faction, just spend normally
+      spend(materialId, 1)
+      showSpendFlash(materialId)
+    }
+  }
+
+  function spendFromFaction(materialId: string, factionId: string) {
+    const faction = factions.find(f => f.id === factionId)
+    if (!faction) return
+
+    const material = faction.materials.find(m => m.materialId === materialId)
+    if (!material) return
+
+    // Reduce both have and need
+    const state = getState(materialId)
+    setNeed(materialId, Math.max(0, state.need - 1))
     spend(materialId, 1)
+    showSpendFlash(materialId)
+    setFactionSelector(null)
+  }
+
+  function showSpendFlash(materialId: string) {
     setFlash(f => ({ ...f, [materialId]: 'success' }))
     setTimeout(() => setFlash(f => { const n = { ...f }; delete n[materialId]; return n }), 600)
   }
@@ -124,6 +170,39 @@ export default function UpgradesVault({ userId, selectedFaction }: UpgradesVault
 
   return (
     <div ref={containerRef} className="mb-6">
+      {/* Faction selector modal */}
+      {factionSelector && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-[#0f1117] border border-gray-700 rounded-lg w-full max-w-sm">
+            <div className="px-5 py-4 border-b border-gray-800">
+              <h3 className="text-white font-bold">Spend from which faction?</h3>
+              <p className="text-xs text-gray-500 mt-1">This item is in multiple factions</p>
+            </div>
+            <div className="px-5 py-3 space-y-2">
+              {factionSelector.factions.map(faction => (
+                <button
+                  key={faction.id}
+                  onClick={() => spendFromFaction(factionSelector.materialId, faction.id)}
+                  className={`w-full text-left px-4 py-2 rounded border transition-colors ${
+                    faction.bgColor
+                  } ${faction.borderColor} ${faction.color} hover:opacity-80`}
+                >
+                  {faction.name}
+                </button>
+              ))}
+            </div>
+            <div className="px-5 py-4 border-t border-gray-800">
+              <button
+                onClick={() => setFactionSelector(null)}
+                className="w-full px-4 py-2 text-sm border border-gray-700 text-gray-400 rounded hover:border-gray-500 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mb-3 flex items-center justify-between">
         <p className="text-xs text-gray-500">
           Click an item to spend 1 — reduces both Have and Remaining
