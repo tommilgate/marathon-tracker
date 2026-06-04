@@ -30,8 +30,7 @@ export default function TrackerClient() {
     setHydrated(true)
   }, [])
 
-  const { getState, setNeed, adjustHave, setHave, loading } = useTracker(user?.id ?? null)
-  const [editingNeed, setEditingNeed] = useState<string | null>(null)
+  const { getState, loading } = useTracker(user?.id ?? null)
   const [editingHave, setEditingHave] = useState<string | null>(null)
   const [filterTier, setFilterTier] = useState<Tier | 'all'>('all')
   const [hideComplete, setHideComplete] = useState(false)
@@ -261,39 +260,11 @@ export default function TrackerClient() {
                         </Link>
                       </td>
 
-                      {/* Need */}
+                      {/* Need — read-only, from factions */}
                       <td className="px-3 py-3 text-center">
-                        {editingNeed === m.id ? (
-                          <input
-                            type="number"
-                            min={0}
-                            defaultValue={s.need}
-                            className="w-14 bg-gray-800 border border-gray-600 rounded px-2 py-0.5 text-center text-white focus:outline-none focus:border-[#b8ff00]"
-                            autoFocus
-                            onBlur={e => {
-                              setNeed(m.id, parseInt(e.target.value) || 0)
-                              setEditingNeed(null)
-                            }}
-                            onKeyDown={e => {
-                              if (e.key === 'Enter') {
-                                setNeed(m.id, parseInt((e.target as HTMLInputElement).value) || 0)
-                                setEditingNeed(null)
-                              }
-                              if (e.key === 'Escape') setEditingNeed(null)
-                            }}
-                          />
-                        ) : (
-                          <button
-                            onClick={() => setEditingNeed(m.id)}
-                            className={`w-14 rounded px-2 py-0.5 border transition-colors ${
-                              isTracked
-                                ? 'border-gray-600 text-white hover:border-gray-400'
-                                : 'border-dashed border-gray-700 text-gray-600 hover:border-gray-500 hover:text-gray-400'
-                            }`}
-                          >
-                            {s.need || '—'}
-                          </button>
-                        )}
+                        <span className={`${s.need ? 'text-white' : 'text-gray-600'}`}>
+                          {s.need || '—'}
+                        </span>
                       </td>
 
                       {/* Have */}
