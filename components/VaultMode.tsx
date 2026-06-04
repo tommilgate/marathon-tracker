@@ -82,6 +82,7 @@ function VaultItem({ material: m, have, isSelected, isEditing, isLocked, onSelec
     gridRow: `span ${span.row}`,
     opacity: isDragging ? 0.4 : 1,
     zIndex: isDragging ? 50 : undefined,
+    aspectRatio: '1',
   }
 
   useEffect(() => {
@@ -505,7 +506,7 @@ export default function VaultMode({ userId }: VaultModeProps) {
         <SortableContext items={orderedMaterials.map(m => m.id)} strategy={rectSortingStrategy}>
           <div
             className="grid gap-2"
-            style={{ gridTemplateColumns: 'repeat(8, 1fr)', aspectRatio: '1' }}
+            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))' }}
           >
             {orderedMaterials.map(m => {
               const s = getState(m.id)

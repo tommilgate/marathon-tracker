@@ -29,6 +29,11 @@ const TIER_SPAN: Record<Tier, { col: number; row: number }> = {
   standard: { col: 1, row: 1 },
 }
 
+// Add aspect ratio style for items
+const itemStyle = {
+  aspectRatio: '1',
+}
+
 interface UpgradesVaultProps {
   userId: string | null
   selectedFaction: string | null
@@ -112,7 +117,7 @@ export default function UpgradesVault({ userId, selectedFaction }: UpgradesVault
         </p>
       </div>
 
-      <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(8, 1fr)', aspectRatio: '1' }}>
+      <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))' }}>
         {visibleMaterials.map(m => {
           const span = TIER_SPAN[m.tier]
           const state = getState(m.id)
@@ -128,6 +133,7 @@ export default function UpgradesVault({ userId, selectedFaction }: UpgradesVault
               style={{
                 gridColumn: `span ${span.col}`,
                 gridRow: `span ${span.row}`,
+                aspectRatio: '1',
               }}
             >
               {/* Image with tier border - fills tile */}
