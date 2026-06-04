@@ -178,6 +178,24 @@ export default function FactionsClient() {
   const [superTracking, setSuperTracking] = useState(false)
   const [pins, setPins] = useState<string[]>([])
 
+  // Load tier visibility preference
+  useEffect(() => {
+    const saved = localStorage.getItem('marathon-visible-tiers')
+    if (saved) {
+      try {
+        const tiers = JSON.parse(saved) as Tier[]
+        setVisibleTiers(new Set(tiers))
+      } catch {
+        // If parsing fails, keep default (all tiers visible)
+      }
+    }
+  }, [])
+
+  // Save tier visibility preference
+  useEffect(() => {
+    localStorage.setItem('marathon-visible-tiers', JSON.stringify(Array.from(visibleTiers)))
+  }, [visibleTiers])
+
   useEffect(() => {
     const u = getSavedUser()
     if (u) {
