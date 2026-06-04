@@ -128,12 +128,12 @@ export async function upsertEntry(
 export async function getLockedTierOrder(tier: string): Promise<string[] | null> {
   const { data, error } = await supabase
     .from('tier_orders')
-    .select('order')
+    .select('material_order')
     .eq('tier', tier)
     .single()
 
   if (error) return null
-  return data?.order ?? null
+  return data?.material_order ?? null
 }
 
 export async function setLockedTierOrder(
@@ -144,7 +144,7 @@ export async function setLockedTierOrder(
   const { error } = await supabase
     .from('tier_orders')
     .upsert(
-      { tier, order, locked_by: userId, locked_at: new Date().toISOString() },
+      { tier, material_order: order, locked_by: userId, locked_at: new Date().toISOString() },
       { onConflict: 'tier' }
     )
   if (error) throw error
@@ -153,13 +153,13 @@ export async function setLockedTierOrder(
 export async function getAllLockedTierOrders(): Promise<Record<string, string[]>> {
   const { data, error } = await supabase
     .from('tier_orders')
-    .select('tier, order')
+    .select('tier, material_order')
 
   if (error) return {}
 
   const result: Record<string, string[]> = {}
   data?.forEach(row => {
-    result[row.tier] = row.order
+    result[row.tier] = row.material_order
   })
   return result
 }
