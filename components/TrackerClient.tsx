@@ -30,7 +30,7 @@ export default function TrackerClient() {
     setHydrated(true)
   }, [])
 
-  const { getState, loading } = useTracker(user?.id ?? null)
+  const { getState, adjustHave, setHave, loading } = useTracker(user?.id ?? null)
   const [editingHave, setEditingHave] = useState<string | null>(null)
   const [filterTier, setFilterTier] = useState<Tier | 'all'>('all')
   const [hideComplete, setHideComplete] = useState(false)
