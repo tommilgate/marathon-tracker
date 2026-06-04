@@ -593,7 +593,7 @@ export default function FactionsClient() {
                                 <span className="text-[#b8ff00]">Ready</span>
                               ) : (
                                 <>
-                                  <span className="text-white font-medium">{trackerNeed - effectiveHave} needed</span>
+                                  <span className="text-white font-medium">{trackerNeed} needed</span>
                                   {' · '}have {effectiveHave}
                                 </>
                               )}
@@ -606,8 +606,11 @@ export default function FactionsClient() {
                           </div>
                         </Link>
 
-                        <div className={`text-sm font-bold shrink-0 ${trackerNeed === 0 ? 'text-green-400' : effectiveHave >= trackerNeed ? 'text-[#b8ff00]' : 'text-white'}`}>
-                          {trackerNeed === 0 ? '✓' : Math.max(-999, trackerNeed - rawHave)}
+                        <div className="flex flex-col items-end shrink-0 gap-0.5">
+                          <div className="text-xs text-gray-500">Remaining</div>
+                          <div className={`text-sm font-bold ${trackerNeed === 0 ? 'text-green-400' : effectiveHave >= trackerNeed ? 'text-[#b8ff00]' : 'text-white'}`}>
+                            {trackerNeed === 0 ? '✓' : Math.max(-999, trackerNeed - rawHave)}
+                          </div>
                         </div>
                       </div>
                     )
