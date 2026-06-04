@@ -13,6 +13,14 @@ function loadVaultOrder(): string[] {
   try { return JSON.parse(localStorage.getItem(ORDER_KEY) || '[]') } catch { return [] }
 }
 
+const TIER_BORDER_COLORS: Record<Tier, string> = {
+  prestige: '#facc15',
+  superior: '#a855f7',
+  deluxe: '#60a5fa',
+  enhanced: '#4ade80',
+  standard: '#d1d5db',
+}
+
 const TIER_SPAN: Record<Tier, { col: number; row: number }> = {
   prestige: { col: 2, row: 2 },
   superior: { col: 2, row: 2 },
@@ -122,20 +130,21 @@ export default function UpgradesVault({ userId, selectedFaction }: UpgradesVault
                 gridRow: `span ${span.row}`,
               }}
             >
-              {/* Image */}
+              {/* Image with tier border */}
               {m.image && (
                 <Image
                   src={m.image}
                   alt={m.name}
                   fill
                   className="object-contain"
+                  style={{ border: `3px solid ${TIER_BORDER_COLORS[m.tier]}` }}
                   sizes="15vw"
                 />
               )}
 
               {/* Count */}
               {state.have > 0 && (
-                <div className="absolute bottom-0 right-0 bg-gray-900/85 px-1.5 py-0.5 text-white text-xs font-bold z-10">
+                <div className="absolute bottom-1 right-1 bg-black/80 px-2 py-1 text-white text-sm font-bold z-10 rounded">
                   ×{state.have}
                 </div>
               )}

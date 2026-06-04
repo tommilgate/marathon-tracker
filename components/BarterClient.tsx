@@ -16,6 +16,14 @@ const TIER_LABELS: Record<Tier, string> = {
   standard: 'Standard',
 }
 
+const TIER_BORDER_COLORS: Record<Tier, string> = {
+  prestige: '#facc15',
+  superior: '#a855f7',
+  deluxe: '#60a5fa',
+  enhanced: '#4ade80',
+  standard: '#d1d5db',
+}
+
 export default function BarterClient() {
   const [user, setUser] = useState<{ id: string; username: string } | null>(null)
   const [hydrated, setHydrated] = useState(false)
@@ -132,6 +140,7 @@ export default function BarterClient() {
                             width={56}
                             height={56}
                             className="rounded shrink-0 object-contain bg-gray-800/50"
+                            style={{ border: `3px solid ${TIER_BORDER_COLORS[m.tier]}` }}
                           />
                         )}
 

@@ -10,6 +10,14 @@ import { getUserPins } from '@/lib/supabase'
 
 const FACTION_PRIORITY = ['cyberacme', 'nucaloric', 'traxus', 'mida', 'arachne', 'sekiguchi']
 
+const TIER_BORDER_COLORS: Record<Tier, string> = {
+  prestige: '#facc15',
+  superior: '#a855f7',
+  deluxe: '#60a5fa',
+  enhanced: '#4ade80',
+  standard: '#d1d5db',
+}
+
 // Edit modal with progressive number boxes
 function FactionEditModal({
   faction,
@@ -79,6 +87,7 @@ function FactionEditModal({
                           width={24}
                           height={24}
                           className="rounded shrink-0 object-contain"
+                          style={{ border: `2px solid ${TIER_BORDER_COLORS[mat.tier]}` }}
                         />
                       )}
                       <label className="text-xs text-gray-400 font-medium truncate">{mat.name}</label>
@@ -386,6 +395,7 @@ export default function FactionsClient() {
                             width={48}
                             height={48}
                             className="rounded shrink-0 object-contain"
+                            style={{ border: `3px solid ${TIER_BORDER_COLORS[material.tier]}` }}
                           />
                         )}
                         <div className="flex-1 min-w-0">
@@ -550,6 +560,7 @@ export default function FactionsClient() {
                               width={48}
                               height={48}
                               className="rounded shrink-0 object-contain"
+                              style={{ border: `3px solid ${TIER_BORDER_COLORS[mat.tier]}` }}
                             />
                           )}
                           <div className="flex-1 min-w-0">

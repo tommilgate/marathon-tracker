@@ -29,6 +29,14 @@ const TIER_SPAN: Record<Tier, { col: number; row: number }> = {
   standard: { col: 1, row: 1 },
 }
 
+const TIER_BORDER_COLORS: Record<Tier, string> = {
+  prestige: '#facc15',
+  superior: '#a855f7',
+  deluxe: '#60a5fa',
+  enhanced: '#4ade80',
+  standard: '#d1d5db',
+}
+
 const ORDER_KEY = 'marathon-vault-order'
 function loadOrder(): string[] {
   if (typeof window === 'undefined') return []
@@ -121,18 +129,25 @@ function VaultItem({ material: m, have, isSelected, isEditing, isLocked, onSelec
       onPointerLeave={isLocked ? undefined : handlePointerLeave}
       className="relative bg-[#161c27] cursor-pointer select-none overflow-hidden"
     >
-      {/* Image */}
+      {/* Image with tier border */}
       {m.image ? (
-        <Image src={m.image} alt={m.name} fill className="object-contain" sizes="15vw" />
+        <Image
+          src={m.image}
+          alt={m.name}
+          fill
+          className="object-contain"
+          style={{ border: `3px solid ${TIER_BORDER_COLORS[m.tier]}` }}
+          sizes="15vw"
+        />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center">
           <span className="text-gray-600 text-xs text-center leading-tight px-1">{m.name}</span>
         </div>
       )}
 
-      {/* Count chip */}
+      {/* Count chip - larger */}
       {have > 0 && !isEditing && (
-        <div className="absolute bottom-0 right-0 bg-black/70 px-1.5 py-0.5 text-white text-xs font-bold z-10">
+        <div className="absolute bottom-1 right-1 bg-black/80 px-2 py-1 text-white text-sm font-bold z-10 rounded">
           ×{have}
         </div>
       )}

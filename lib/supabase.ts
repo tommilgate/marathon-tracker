@@ -147,7 +147,10 @@ export async function setLockedTierOrder(
       { tier, material_order: order, locked_by: userId, locked_at: new Date().toISOString() },
       { onConflict: 'tier' }
     )
-  if (error) throw error
+  if (error) {
+    console.error('Supabase error:', error)
+    throw new Error(`Failed to lock tier: ${error.message}`)
+  }
 }
 
 export async function getAllLockedTierOrders(): Promise<Record<string, string[]>> {
