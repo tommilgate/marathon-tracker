@@ -10,26 +10,33 @@ import { useTracker, getSavedUser } from '@/lib/store'
 const FACTION_PRIORITY = ['cyberacme', 'nucaloric', 'traxus', 'mida', 'arachne', 'sekiguchi']
 
 // Batch edit modal for all faction materials
-function FactionEditModal({ faction, editValues, onValueChange, onSave, onCancel }: {
+function FactionEditModal({ faction, editValues, onValueChange, onSave, onCancel, getState }: {
   faction: typeof factions[0]
   editValues: Record<string, string>
   onValueChange: (materialId: string, value: string) => void
   onSave: (totals: Record<string, number>) => void
   onCancel: () => void
+  getState: (id: string) => { need: number; have: number }
 }) {
   // Track individual number lists per material
   const [numberLists, setNumberLists] = useState<Record<string, number[]>>({})
+  const [initialized, setInitialized] = useState(false)
 
-  // Initialize on first mount only
+  // Initialize from actual tracker state when modal opens
   useEffect(() => {
-    if (Object.keys(numberLists).length === 0) {
+    if (!initialized && faction) {
+      console.log('Initializing modal from tracker state...')
       const init: Record<string, number[]> = {}
-      faction.materials.forEach(({ materialId, need }) => {
-        init[materialId] = [need]
+      faction.materials.forEach(({ materialId }) => {
+        const trackerNeed = getState(materialId).need
+        console.log(`${materialId}: tracker.need = ${trackerNeed}`)
+        init[materialId] = [trackerNeed]
       })
+      console.log('Modal initialization complete:', init)
       setNumberLists(init)
+      setInitialized(true)
     }
-  }, [faction.id])
+  }, [faction.id, initialized, getState])
 
   function updateNumber(materialId: string, index: number, value: string) {
     const nums = [...(numberLists[materialId] || [])]
@@ -476,6 +483,7 @@ export default function FactionsClient() {
           faction={factions.find(f => f.id === editingFaction)!}
           editValues={editValues}
           onValueChange={(materialId, value) => setEditValues({ ...editValues, [materialId]: value })}
+          getState={getState}
           onSave={(totals) => {
             console.log('=== SAVE STARTED ===')
             console.log('Current editingFaction:', editingFaction)
