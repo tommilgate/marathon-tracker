@@ -75,6 +75,9 @@ function VaultItem({ material: m, have, isSelected, isEditing, isLocked, onSelec
   // Pull dnd-kit's onPointerDown out so we can call it alongside ours
   const { onPointerDown: dndPointerDown, ...otherListeners } = (listeners ?? {}) as Record<string, unknown> & { onPointerDown?: React.PointerEventHandler }
 
+  // Account for gap spacing in aspect ratio calculation
+  const aspectRatioValue = span.col === 2 ? '2.1' : '1'
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -82,7 +85,7 @@ function VaultItem({ material: m, have, isSelected, isEditing, isLocked, onSelec
     gridRow: `span ${span.row}`,
     opacity: isDragging ? 0.4 : 1,
     zIndex: isDragging ? 50 : undefined,
-    aspectRatio: `${span.col} / ${span.row}`,
+    aspectRatio: aspectRatioValue,
   }
 
   useEffect(() => {

@@ -122,6 +122,8 @@ export default function UpgradesVault({ userId, selectedFaction }: UpgradesVault
           const span = TIER_SPAN[m.tier]
           const state = getState(m.id)
           const flashState = flash[m.id]
+          // Account for gap spacing in aspect ratio
+          const aspectRatioValue = span.col === 2 ? '2.1' : '1'
 
           return (
             <div
@@ -133,7 +135,7 @@ export default function UpgradesVault({ userId, selectedFaction }: UpgradesVault
               style={{
                 gridColumn: `span ${span.col}`,
                 gridRow: `span ${span.row}`,
-                aspectRatio: `${span.col} / ${span.row}`,
+                aspectRatio: aspectRatioValue,
               }}
             >
               {/* Image with tier border - fills tile */}
