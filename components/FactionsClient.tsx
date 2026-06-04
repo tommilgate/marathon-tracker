@@ -219,12 +219,8 @@ export default function FactionsClient() {
     return { done, total }
   }
 
-  // Calculate totals across all active factions
-  function getTotalStats() {
-    let totalNeed = 0
-    let totalHave = 0
-    let totalRemaining = 0
-
+  // Get per-material totals across active factions
+  function getMaterialTotals() {
     const allMaterialIds = new Set<string>()
     activeFactions.forEach(factionId => {
       const faction = factions.find(f => f.id === factionId)
@@ -235,17 +231,23 @@ export default function FactionsClient() {
       }
     })
 
-    allMaterialIds.forEach(materialId => {
-      const state = getState(materialId)
-      totalNeed += state.need
-      totalHave += state.have
-      totalRemaining += Math.max(0, state.need - state.have)
-    })
-
-    return { totalNeed, totalHave, totalRemaining }
+    return Array.from(allMaterialIds)
+      .map(materialId => {
+        const state = getState(materialId)
+        const mat = getMaterialById(materialId)
+        return {
+          material: mat,
+          materialId,
+          need: state.need,
+          have: state.have,
+          remaining: Math.max(0, state.need - state.have),
+        }
+      })
+      .filter(m => m.material)
+      .sort((a, b) => (b.remaining || 0) - (a.remaining || 0))
   }
 
-  const totals = getTotalStats()
+  const materialTotals = getMaterialTotals()
 
   return (
     <div>
@@ -266,23 +268,44 @@ export default function FactionsClient() {
         )}
       </div>
 
-      {showTotals && activeFactions.size > 0 && (
+      {showTotals && materialTotals.length > 0 && (
         <div className="mb-6 border border-gray-700 rounded-lg p-4 bg-gray-900/30">
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div>
-              <div className="text-xs text-gray-500 mb-1">Total Needs</div>
-              <div className="text-2xl font-bold text-white">{totals.totalNeed}</div>
-            </div>
-            <div>
-              <div className="text-xs text-gray-500 mb-1">Total Have</div>
-              <div className="text-2xl font-bold text-[#b8ff00]">{totals.totalHave}</div>
-            </div>
-            <div>
-              <div className="text-xs text-gray-500 mb-1">Remaining</div>
-              <div className={`text-2xl font-bold ${totals.totalRemaining === 0 ? 'text-green-400' : 'text-white'}`}>
-                {totals.totalRemaining}
+          <div className="space-y-2">
+            {materialTotals.map(({ materialId, material, need, have, remaining }) => (
+              <div
+                key={materialId}
+                className="flex items-center gap-3 rounded px-3 py-2 border border-gray-800/50 hover:border-gray-700"
+              >
+                {material?.image && (
+                  <Image
+                    src={material.image}
+                    alt={material.name}
+                    width={28}
+                    height={28}
+                    className="rounded shrink-0 object-contain"
+                  />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-medium text-white">{material?.name}</div>
+                </div>
+                <div className="flex gap-4 text-xs shrink-0">
+                  <div className="text-center">
+                    <div className="text-gray-500 text-xs">Need</div>
+                    <div className="font-bold text-white">{need}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-gray-500 text-xs">Have</div>
+                    <div className="font-bold text-[#b8ff00]">{have}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-gray-500 text-xs">Remaining</div>
+                    <div className={`font-bold ${remaining === 0 ? 'text-green-400' : 'text-white'}`}>
+                      {remaining}
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+            ))}
           </div>
         </div>
       )}
