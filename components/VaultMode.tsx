@@ -429,8 +429,8 @@ export default function VaultMode({ userId }: VaultModeProps) {
         </div>
       </div>
 
-      {/* Lock tier buttons */}
-      {user && (
+      {/* Lock tier buttons - thomas only */}
+      {user && user.username === 'thomas' && (
         <div className="mb-4 pb-4 border-b border-gray-800">
           <p className="text-xs text-gray-500 mb-2">Lock tier order for all users:</p>
           <div className="flex gap-2 flex-wrap">
