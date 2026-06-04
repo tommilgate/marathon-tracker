@@ -117,13 +117,20 @@ export default function UpgradesVault({ userId, selectedFaction }: UpgradesVault
         </p>
       </div>
 
-      <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))' }}>
+      <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(8, 1fr)' }}>
         {visibleMaterials.map(m => {
           const span = TIER_SPAN[m.tier]
           const state = getState(m.id)
           const flashState = flash[m.id]
-          // Account for gap spacing in aspect ratio
-          const aspectRatioValue = span.col === 2 ? '2.1' : '1'
+
+          // Calculate aspect ratio accounting for gap (8px gap between cells)
+          // With 8 columns, each gap ≈ 1/8 of column width (10% factor)
+          // So 2 columns + 1 gap ≈ 2.1 units wide
+          // And 2 rows + 1 gap ≈ 2.1 units tall
+          const gapFactor = 0.1
+          const width = span.col + (span.col > 1 ? gapFactor : 0)
+          const height = span.row + (span.row > 1 ? gapFactor : 0)
+          const aspectRatioValue = (width / height).toFixed(2)
 
           return (
             <div

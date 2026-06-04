@@ -75,8 +75,14 @@ function VaultItem({ material: m, have, isSelected, isEditing, isLocked, onSelec
   // Pull dnd-kit's onPointerDown out so we can call it alongside ours
   const { onPointerDown: dndPointerDown, ...otherListeners } = (listeners ?? {}) as Record<string, unknown> & { onPointerDown?: React.PointerEventHandler }
 
-  // Account for gap spacing in aspect ratio calculation
-  const aspectRatioValue = span.col === 2 ? '2.1' : '1'
+  // Calculate aspect ratio accounting for gap (8px gap between cells)
+  // With 8 columns, each gap = ~1/8 of column width
+  // So 2 columns + 1 gap ≈ 2.1 units wide
+  // And 2 rows + 1 gap ≈ 2.1 units tall
+  const gapFactor = 0.1 // approximate gap as 10% of column width
+  const width = span.col + (span.col > 1 ? gapFactor : 0)
+  const height = span.row + (span.row > 1 ? gapFactor : 0)
+  const aspectRatioValue = (width / height).toFixed(2)
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -509,7 +515,7 @@ export default function VaultMode({ userId }: VaultModeProps) {
         <SortableContext items={orderedMaterials.map(m => m.id)} strategy={rectSortingStrategy}>
           <div
             className="grid gap-2"
-            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))' }}
+            style={{ gridTemplateColumns: 'repeat(8, 1fr)' }}
           >
             {orderedMaterials.map(m => {
               const s = getState(m.id)
