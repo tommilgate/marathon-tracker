@@ -24,6 +24,7 @@ export default function FactionsClient() {
   const [userId, setUserId] = useState<string | null>(null)
   const [confirmed, setConfirmed] = useState<{ id: string; action: 'add' | 'remove' } | null>(null)
   const [activeFactions, setActiveFactions] = useState<Set<string>>(new Set())
+  const [editing, setEditing] = useState<{ factionId: string; materialId: string; value: string } | null>(null)
 
   useEffect(() => {
     const u = getSavedUser()
@@ -264,39 +265,87 @@ export default function FactionsClient() {
                     const remaining = Math.max(0, need - effectiveHave)
                     const complete = effectiveHave >= need
                     const isShared = rawHave !== effectiveHave
+                    const isEditing = editing?.factionId === faction.id && editing?.materialId === materialId
 
                     return (
-                      <Link
+                      <div
                         key={materialId}
-                        href={`/materials/${materialId}`}
-                        className={`flex items-center gap-3 rounded-lg px-3 py-2 border transition-colors hover:border-gray-600 ${
-                          complete ? 'border-gray-800 opacity-40' : 'border-gray-700/50'
+                        className={`flex items-center gap-3 rounded-lg px-3 py-2 border transition-colors ${
+                          isEditing ? 'border-[#b8ff00] bg-[#b8ff00]/5'
+                          : complete ? 'border-gray-800 opacity-40 hover:border-gray-700'
+                          : 'border-gray-700/50 hover:border-gray-600'
                         }`}
                       >
-                        {mat.image && (
-                          <Image src={mat.image} alt={mat.name} width={48} height={48}
-                            className="rounded shrink-0 object-contain" />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="text-white text-xs font-medium truncate">{mat.name}</div>
-                          <div className="text-xs mt-0.5">
-                            {complete ? (
-                              <span className="text-green-400">✓ Complete</span>
-                            ) : (
-                              <span className="text-gray-500">
-                                <span className="text-white font-medium">{remaining} left</span>
-                                {' · '}have {effectiveHave}
-                                {isShared && isActive && (
-                                  <span className="text-yellow-600"> ({rawHave} total)</span>
-                                )}
-                              </span>
+                        <Link
+                          href={`/materials/${materialId}`}
+                          className="flex items-center gap-3 flex-1 min-w-0"
+                        >
+                          {mat.image && (
+                            <Image src={mat.image} alt={mat.name} width={48} height={48}
+                              className="rounded shrink-0 object-contain" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="text-white text-xs font-medium truncate">{mat.name}</div>
+                            <div className="text-xs mt-0.5">
+                              {complete ? (
+                                <span className="text-green-400">✓ Complete</span>
+                              ) : (
+                                <span className="text-gray-500">
+                                  <span className="text-white font-medium">{remaining} left</span>
+                                  {' · '}have {effectiveHave}
+                                  {isShared && isActive && (
+                                    <span className="text-yellow-600"> ({rawHave} total)</span>
+                                  )}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </Link>
+
+                        {isEditing ? (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <input
+                              type="number"
+                              min={1}
+                              value={editing.value}
+                              onChange={e => setEditing({ ...editing, value: e.target.value })}
+                              autoFocus
+                              className="w-12 bg-gray-800 border border-[#b8ff00] rounded px-1 py-0.5 text-white text-xs text-center focus:outline-none"
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                  setNeed(materialId, parseInt(editing.value) || need)
+                                  setEditing(null)
+                                }
+                                if (e.key === 'Escape') setEditing(null)
+                              }}
+                            />
+                            <button
+                              onClick={() => {
+                                setNeed(materialId, parseInt(editing.value) || need)
+                                setEditing(null)
+                              }}
+                              className="px-1.5 py-0.5 text-xs bg-[#b8ff00] text-black font-bold rounded hover:bg-[#a3e600]"
+                            >
+                              ✓
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 shrink-0">
+                            <div className={`text-sm font-bold ${complete ? 'text-green-400' : 'text-white'}`}>
+                              {complete ? '✓' : need}
+                            </div>
+                            {isActive && !complete && (
+                              <button
+                                onClick={() => setEditing({ factionId: faction.id, materialId, value: String(need) })}
+                                className="text-xs border border-gray-700 text-gray-500 rounded px-1.5 py-0.5 hover:border-gray-500 hover:text-gray-300 transition-colors"
+                                title="Edit required amount"
+                              >
+                                ✎
+                              </button>
                             )}
                           </div>
-                        </div>
-                        <div className={`text-sm font-bold shrink-0 ${complete ? 'text-green-400' : 'text-white'}`}>
-                          {complete ? '✓' : remaining}
-                        </div>
-                      </Link>
+                        )}
+                      </div>
                     )
                   })}
                 </div>
