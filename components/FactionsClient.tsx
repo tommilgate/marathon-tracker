@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { factions } from '@/lib/factions'
-import { getMaterialById } from '@/lib/materials'
+import { getMaterialById, TIER_ORDER, TIER_COLORS, TIER_BG, type Tier } from '@/lib/materials'
 import { useTracker, getSavedUser } from '@/lib/store'
+import { getUserPins } from '@/lib/supabase'
 
 const FACTION_PRIORITY = ['cyberacme', 'nucaloric', 'traxus', 'mida', 'arachne', 'sekiguchi']
 
@@ -164,12 +165,16 @@ export default function FactionsClient() {
   const [editingFactionId, setEditingFactionId] = useState<string | null>(null)
   const [confirmed, setConfirmed] = useState<string | null>(null)
   const [showTotals, setShowTotals] = useState(false)
+  const [visibleTiers, setVisibleTiers] = useState<Set<Tier>>(new Set(TIER_ORDER))
+  const [superTracking, setSuperTracking] = useState(false)
+  const [pins, setPins] = useState<string[]>([])
 
   useEffect(() => {
     const u = getSavedUser()
     if (u) {
       setUserId(u.id)
       setActiveFactions(loadActive(u.id))
+      getUserPins(u.id).then(setPins).catch(() => {})
     }
   }, [])
 
@@ -219,8 +224,8 @@ export default function FactionsClient() {
     return { done, total }
   }
 
-  // Get per-material totals across active factions
-  function getMaterialTotals() {
+  // Get per-material totals across active factions, grouped by tier
+  function getMaterialTotalsByTier() {
     const allMaterialIds = new Set<string>()
     activeFactions.forEach(factionId => {
       const faction = factions.find(f => f.id === factionId)
@@ -231,7 +236,7 @@ export default function FactionsClient() {
       }
     })
 
-    return Array.from(allMaterialIds)
+    const materials = Array.from(allMaterialIds)
       .map(materialId => {
         const state = getState(materialId)
         const mat = getMaterialById(materialId)
@@ -244,10 +249,38 @@ export default function FactionsClient() {
         }
       })
       .filter(m => m.material)
-      .sort((a, b) => (b.remaining || 0) - (a.remaining || 0))
+
+    // Group by tier
+    const byTier: Record<Tier, typeof materials> = {
+      prestige: [],
+      superior: [],
+      deluxe: [],
+      enhanced: [],
+      standard: [],
+    }
+
+    materials.forEach(m => {
+      if (m.material) {
+        byTier[m.material.tier].push(m)
+      }
+    })
+
+    // Sort within each tier by remaining
+    Object.keys(byTier).forEach(tier => {
+      byTier[tier as Tier].sort((a, b) => (b.remaining || 0) - (a.remaining || 0))
+    })
+
+    return byTier
   }
 
-  const materialTotals = getMaterialTotals()
+  const materialsByTier = getMaterialTotalsByTier()
+
+  function toggleTierVisibility(tier: Tier) {
+    const next = new Set(visibleTiers)
+    if (next.has(tier)) next.delete(tier)
+    else next.add(tier)
+    setVisibleTiers(next)
+  }
 
   return (
     <div>
@@ -268,44 +301,118 @@ export default function FactionsClient() {
         )}
       </div>
 
-      {showTotals && materialTotals.length > 0 && (
-        <div className="mb-6 border border-gray-700 rounded-lg p-4 bg-gray-900/30">
-          <div className="space-y-2">
-            {materialTotals.map(({ materialId, material, need, have, remaining }) => (
-              <div
-                key={materialId}
-                className="flex items-center gap-3 rounded px-3 py-2 border border-gray-800/50 hover:border-gray-700"
+      {showTotals && (
+        <div className="mb-6 border border-gray-700 rounded-lg overflow-hidden bg-gray-900/30">
+          {/* Tier filters */}
+          <div className="border-b border-gray-800 px-4 py-3 flex flex-wrap gap-2">
+            {TIER_ORDER.map(tier => (
+              <button
+                key={tier}
+                onClick={() => toggleTierVisibility(tier)}
+                className={`text-xs px-3 py-1 rounded border transition-colors ${
+                  visibleTiers.has(tier)
+                    ? `${TIER_BG[tier]} ${TIER_COLORS[tier]} border-current`
+                    : 'border-gray-700 text-gray-600 hover:border-gray-500'
+                }`}
               >
-                {material?.image && (
-                  <Image
-                    src={material.image}
-                    alt={material.name}
-                    width={28}
-                    height={28}
-                    className="rounded shrink-0 object-contain"
-                  />
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-medium text-white">{material?.name}</div>
-                </div>
-                <div className="flex gap-4 text-xs shrink-0">
-                  <div className="text-center">
-                    <div className="text-gray-500 text-xs">Need</div>
-                    <div className="font-bold text-white">{need}</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-gray-500 text-xs">Have</div>
-                    <div className="font-bold text-[#b8ff00]">{have}</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-gray-500 text-xs">Remaining</div>
-                    <div className={`font-bold ${remaining === 0 ? 'text-green-400' : 'text-white'}`}>
-                      {remaining}
-                    </div>
-                  </div>
-                </div>
-              </div>
+                {tier.charAt(0).toUpperCase() + tier.slice(1)}
+              </button>
             ))}
+          </div>
+
+          {/* Super tracking checkbox */}
+          <div className="border-b border-gray-800 px-4 py-3 flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={superTracking}
+              onChange={e => setSuperTracking(e.target.checked)}
+              className="accent-[#b8ff00]"
+              id="super-tracking"
+            />
+            <label htmlFor="super-tracking" className="text-xs text-gray-300 cursor-pointer">
+              Show my Super Tracking ({pins.length}/3)
+            </label>
+          </div>
+
+          {/* Super tracking items */}
+          {superTracking && pins.length > 0 && (
+            <div className="border-b border-gray-800 px-4 py-3 bg-gray-800/20">
+              <div className="text-xs text-gray-500 mb-2 font-medium">You're hunting:</div>
+              <div className="flex gap-2 flex-wrap">
+                {pins.map(materialId => {
+                  const mat = getMaterialById(materialId)
+                  if (!mat) return null
+                  return (
+                    <div key={materialId} className="flex items-center gap-2 px-2 py-1 rounded bg-gray-700/50 border border-gray-600">
+                      {mat.image && (
+                        <Image
+                          src={mat.image}
+                          alt={mat.name}
+                          width={24}
+                          height={24}
+                          className="rounded object-contain"
+                        />
+                      )}
+                      <span className="text-xs text-gray-300">{mat.name}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Materials by tier */}
+          <div className="p-4 space-y-4">
+            {TIER_ORDER.map(tier => {
+              if (!visibleTiers.has(tier)) return null
+              const materials = materialsByTier[tier]
+              if (!materials || materials.length === 0) return null
+
+              return (
+                <div key={tier}>
+                  <h4 className={`text-xs font-bold uppercase tracking-wider mb-2 ${TIER_COLORS[tier]}`}>
+                    {tier}
+                  </h4>
+                  <div className="space-y-2">
+                    {materials.map(({ materialId, material, need, have, remaining }) => (
+                      <div
+                        key={materialId}
+                        className="flex items-center gap-3 rounded px-3 py-2 border border-gray-800/50 hover:border-gray-700"
+                      >
+                        {material?.image && (
+                          <Image
+                            src={material.image}
+                            alt={material.name}
+                            width={48}
+                            height={48}
+                            className="rounded shrink-0 object-contain"
+                          />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-white">{material?.name}</div>
+                        </div>
+                        <div className="flex gap-4 text-xs shrink-0">
+                          <div className="text-center">
+                            <div className="text-gray-500 text-xs">Need</div>
+                            <div className="font-bold text-white">{need}</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-gray-500 text-xs">Have</div>
+                            <div className="font-bold text-[#b8ff00]">{have}</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-gray-500 text-xs">Remaining</div>
+                            <div className={`font-bold ${remaining === 0 ? 'text-green-400' : 'text-white'}`}>
+                              {remaining}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
