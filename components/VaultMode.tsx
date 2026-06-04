@@ -133,10 +133,10 @@ function VaultItem({ material: m, have, isSelected, isEditing, isLocked, onSelec
       style={style}
       {...attributes}
       {...(isLocked ? {} : otherListeners)}
-      onPointerDown={isLocked ? undefined : handlePointerDown}
-      onPointerMove={isLocked ? undefined : handlePointerMove}
-      onPointerUp={isLocked ? undefined : handlePointerUp}
-      onPointerLeave={isLocked ? undefined : handlePointerLeave}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerLeave}
       className="relative bg-[#161c27] cursor-pointer select-none overflow-hidden"
     >
       {/* Image with tier border - fills tile */}
