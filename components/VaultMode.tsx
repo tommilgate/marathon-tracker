@@ -505,7 +505,7 @@ export default function VaultMode({ userId }: VaultModeProps) {
         <SortableContext items={orderedMaterials.map(m => m.id)} strategy={rectSortingStrategy}>
           <div
             className="grid gap-2"
-            style={{ gridTemplateColumns: 'repeat(8, 1fr)', gridAutoRows: '80px' }}
+            style={{ gridTemplateColumns: 'repeat(8, 1fr)', aspectRatio: '1' }}
           >
             {orderedMaterials.map(m => {
               const s = getState(m.id)
