@@ -130,13 +130,13 @@ export default function UpgradesVault({ userId, selectedFaction }: UpgradesVault
                 gridRow: `span ${span.row}`,
               }}
             >
-              {/* Image with tier border */}
+              {/* Image with tier border - fills tile */}
               {m.image && (
                 <Image
                   src={m.image}
                   alt={m.name}
                   fill
-                  className="object-contain"
+                  className="object-cover"
                   style={{ border: `3px solid ${TIER_BORDER_COLORS[m.tier]}` }}
                   sizes="15vw"
                 />

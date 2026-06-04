@@ -129,13 +129,13 @@ function VaultItem({ material: m, have, isSelected, isEditing, isLocked, onSelec
       onPointerLeave={isLocked ? undefined : handlePointerLeave}
       className="relative bg-[#161c27] cursor-pointer select-none overflow-hidden"
     >
-      {/* Image with tier border */}
+      {/* Image with tier border - fills tile */}
       {m.image ? (
         <Image
           src={m.image}
           alt={m.name}
           fill
-          className="object-contain"
+          className="object-cover"
           style={{ border: `3px solid ${TIER_BORDER_COLORS[m.tier]}` }}
           sizes="15vw"
         />
