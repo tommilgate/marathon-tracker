@@ -133,7 +133,7 @@ export default function UpgradesVault({ userId, selectedFaction }: UpgradesVault
               style={{
                 gridColumn: `span ${span.col}`,
                 gridRow: `span ${span.row}`,
-                aspectRatio: '1',
+                aspectRatio: `${span.col} / ${span.row}`,
               }}
             >
               {/* Image with tier border - fills tile */}

@@ -82,7 +82,7 @@ function VaultItem({ material: m, have, isSelected, isEditing, isLocked, onSelec
     gridRow: `span ${span.row}`,
     opacity: isDragging ? 0.4 : 1,
     zIndex: isDragging ? 50 : undefined,
-    aspectRatio: '1',
+    aspectRatio: `${span.col} / ${span.row}`,
   }
 
   useEffect(() => {
