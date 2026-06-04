@@ -23,7 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/" className="hover:text-gray-100 transition-colors">Vault</Link>
             <Link href="/factions" className="hover:text-gray-100 transition-colors">Factions</Link>
             <Link href="/spending" className="hover:text-gray-100 transition-colors">Spending</Link>
-            <Link href="/barter" className="hover:text-gray-100 transition-colors">Barter</Link>
+            <Link href="/barter" className="hover:text-gray-100 transition-colors">Spend</Link>
             <Link href="/maxing" className="hover:text-gray-100 transition-colors">Maxing</Link>
             <Link href="/maps" className="hover:text-gray-100 transition-colors">Maps</Link>
 

@@ -84,12 +84,12 @@ export default function BarterClient() {
       <div className="mb-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold text-white tracking-wide">Barter Items</h1>
+            <h1 className="text-lg font-bold text-white tracking-wide">Spend These</h1>
             <p className="text-xs text-gray-500 mt-1">
-              Items you're 100% done farming — trade these with other players
+              Items you're 100% done farming — spend or trade with other players
             </p>
             <p className="text-xs text-gray-600 mt-2">
-              {user.username} · {completeItems.length} items ready to barter
+              {user.username} · {completeItems.length} items ready
             </p>
           </div>
         </div>

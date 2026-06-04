@@ -120,3 +120,46 @@ export async function upsertEntry(
     )
   if (error) throw error
 }
+
+// ---------------------------------------------------------------------------
+// Tier order locks — global ordering that applies to all users
+// ---------------------------------------------------------------------------
+
+export async function getLockedTierOrder(tier: string): Promise<string[] | null> {
+  const { data, error } = await supabase
+    .from('tier_orders')
+    .select('order')
+    .eq('tier', tier)
+    .single()
+
+  if (error) return null
+  return data?.order ?? null
+}
+
+export async function setLockedTierOrder(
+  tier: string,
+  order: string[],
+  userId: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('tier_orders')
+    .upsert(
+      { tier, order, locked_by: userId, locked_at: new Date().toISOString() },
+      { onConflict: 'tier' }
+    )
+  if (error) throw error
+}
+
+export async function getAllLockedTierOrders(): Promise<Record<string, string[]>> {
+  const { data, error } = await supabase
+    .from('tier_orders')
+    .select('tier, order')
+
+  if (error) return {}
+
+  const result: Record<string, string[]> = {}
+  data?.forEach(row => {
+    result[row.tier] = row.order
+  })
+  return result
+}

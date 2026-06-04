@@ -17,8 +17,9 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { materials, type Material, type Tier } from '@/lib/materials'
-import { useTracker } from '@/lib/store'
+import { materials, type Material, type Tier, TIER_ORDER, TIER_COLORS } from '@/lib/materials'
+import { useTracker, getSavedUser } from '@/lib/store'
+import { getLockedTierOrder, setLockedTierOrder, getAllLockedTierOrders } from '@/lib/supabase'
 
 const TIER_ORDER: Tier[] = ['prestige', 'superior', 'deluxe', 'enhanced', 'standard']
 
@@ -283,12 +284,19 @@ interface VaultModeProps {
 
 export default function VaultMode({ userId }: VaultModeProps) {
   const { getState, adjustHave, setHave } = useTracker(userId)
+  const [user, setUser] = useState<{ id: string; username: string } | null>(null)
 
   const [order, setOrder] = useState<string[]>([])
   const [selected, setSelected] = useState<string | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
   const [hideEmpty, setHideEmpty] = useState(false)
+  const [lockedTiers, setLockedTiers] = useState<Set<Tier>>(new Set())
   const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const saved = getSavedUser()
+    setUser(saved)
+  }, [])
 
   // Restore hideEmpty from localStorage
   useEffect(() => {
@@ -304,13 +312,38 @@ export default function VaultMode({ userId }: VaultModeProps) {
   }, [hideEmpty, userId])
 
   useEffect(() => {
-    const saved = loadOrder()
-    const defaultOrder = TIER_ORDER.flatMap(tier =>
-      materials.filter(m => m.tier === tier).map(m => m.id)
-    )
-    const missing = defaultOrder.filter(id => !saved.includes(id))
-    const valid = saved.filter(id => materials.find(m => m.id === id))
-    setOrder([...valid, ...missing])
+    async function loadOrderWithLocks() {
+      const saved = loadOrder()
+      const lockedOrders = await getAllLockedTierOrders()
+
+      // Check which tiers have locks
+      const locked = new Set<Tier>()
+      Object.keys(lockedOrders).forEach(tier => {
+        if (TIER_ORDER.includes(tier as Tier)) locked.add(tier as Tier)
+      })
+      setLockedTiers(locked)
+
+      // Build order: use locked order for locked tiers, use saved/default for unlocked
+      let finalOrder: string[] = []
+
+      TIER_ORDER.forEach(tier => {
+        const tierMaterials = materials.filter(m => m.tier === tier).map(m => m.id)
+
+        if (lockedOrders[tier]) {
+          // Use locked order
+          finalOrder = [...finalOrder, ...lockedOrders[tier]]
+        } else {
+          // Use saved order, with missing added at end
+          const tierSaved = saved.filter(id => tierMaterials.includes(id))
+          const tierMissing = tierMaterials.filter(id => !tierSaved.includes(id))
+          finalOrder = [...finalOrder, ...tierSaved, ...tierMissing]
+        }
+      })
+
+      setOrder(finalOrder)
+    }
+
+    loadOrderWithLocks()
   }, [])
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
@@ -334,6 +367,24 @@ export default function VaultMode({ userId }: VaultModeProps) {
       adjustHave(selected, -1)
     }
   }, [selected, editing, adjustHave])
+
+  async function lockTierOrder(tier: Tier) {
+    if (!user) return
+
+    // Get all materials for this tier in current order
+    const tierMaterials = order.filter(id => {
+      const mat = materials.find(m => m.id === id)
+      return mat?.tier === tier
+    })
+
+    // Save as locked order
+    await setLockedTierOrder(tier, tierMaterials, user.id)
+    setLockedTiers(prev => new Set(prev).add(tier))
+  }
+
+  function getTierLabel(tier: Tier): string {
+    return tier.charAt(0).toUpperCase() + tier.slice(1)
+  }
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown)
@@ -362,7 +413,7 @@ export default function VaultMode({ userId }: VaultModeProps) {
         <p className="text-xs text-gray-500">
           Click = +1 · Hold = type number · <kbd className="bg-gray-800 px-1 rounded">Delete</kbd> = −1 · Drag to reorder
         </p>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 flex-wrap">
           <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer select-none shrink-0">
             <input
               type="checkbox"
@@ -377,6 +428,29 @@ export default function VaultMode({ userId }: VaultModeProps) {
           }} />
         </div>
       </div>
+
+      {/* Lock tier buttons */}
+      {user && (
+        <div className="mb-4 pb-4 border-b border-gray-800">
+          <p className="text-xs text-gray-500 mb-2">Lock tier order for all users:</p>
+          <div className="flex gap-2 flex-wrap">
+            {TIER_ORDER.map(tier => (
+              <button
+                key={tier}
+                onClick={() => lockTierOrder(tier)}
+                className={`text-xs px-3 py-1 rounded border transition-colors ${
+                  lockedTiers.has(tier)
+                    ? `${TIER_COLORS[tier]} border-current bg-gray-900/50`
+                    : 'border-gray-700 text-gray-500 hover:border-gray-500'
+                }`}
+              >
+                {lockedTiers.has(tier) ? '🔒 ' : ''}
+                {getTierLabel(tier)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={orderedMaterials.map(m => m.id)} strategy={rectSortingStrategy}>
