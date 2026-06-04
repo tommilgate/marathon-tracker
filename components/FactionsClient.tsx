@@ -20,27 +20,22 @@ function FactionEditModal({ faction, editValues, onValueChange, onSave, onCancel
   // Track individual number lists per material
   const [numberLists, setNumberLists] = useState<Record<string, number[]>>({})
 
-  // Initialize on open or faction change
+  // Initialize on first mount only
   useEffect(() => {
-    const init: Record<string, number[]> = {}
-    faction.materials.forEach(({ materialId, need }) => {
-      const stored = editValues[materialId]
-      if (stored) {
-        init[materialId] = stored.split('+').map(n => parseInt(n.trim())).filter(n => !isNaN(n))
-      } else {
+    if (Object.keys(numberLists).length === 0) {
+      const init: Record<string, number[]> = {}
+      faction.materials.forEach(({ materialId, need }) => {
         init[materialId] = [need]
-      }
-    })
-    setNumberLists(init)
-  }, [faction.id, editValues])
+      })
+      setNumberLists(init)
+    }
+  }, [faction.id])
 
   function updateNumber(materialId: string, index: number, value: string) {
     const nums = [...(numberLists[materialId] || [])]
     const parsed = parseInt(value) || 0
     nums[index] = parsed
     setNumberLists({ ...numberLists, [materialId]: nums })
-    // Update editValues with the joined string
-    onValueChange(materialId, nums.filter(n => n > 0).join('+'))
   }
 
   function addNumber(materialId: string) {
@@ -53,7 +48,6 @@ function FactionEditModal({ faction, editValues, onValueChange, onSave, onCancel
     const nums = [...(numberLists[materialId] || [])]
     nums.splice(index, 1)
     setNumberLists({ ...numberLists, [materialId]: nums })
-    onValueChange(materialId, nums.filter(n => n > 0).join('+'))
   }
 
   function getTotal(materialId: string): number {
