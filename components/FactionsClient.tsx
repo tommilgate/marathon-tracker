@@ -92,11 +92,17 @@ function FactionEditModal({
                         min={0}
                         value={n || ''}
                         onChange={e => updateNumber(materialId, idx, e.target.value)}
+                        onBlur={e => {
+                          // Auto-add next box if this one has a value and isn't the last
+                          if (parseInt(e.target.value) > 0 && idx === nums.length - 1) {
+                            setNumberLists({ ...numberLists, [materialId]: [...nums, 0] })
+                          }
+                        }}
                         placeholder="0"
                         className="w-16 bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-white text-sm focus:outline-none focus:border-[#b8ff00]"
                       />
                     ))}
-                    {(!nums.length || nums[nums.length - 1] > 0) && (
+                    {nums.length === 0 && (
                       <input
                         type="number"
                         min={0}
@@ -104,9 +110,7 @@ function FactionEditModal({
                         placeholder="0"
                         onChange={e => {
                           if (e.target.value) {
-                            const newNums = [...nums, parseInt(e.target.value) || 0]
-                            setNumberLists({ ...numberLists, [materialId]: newNums })
-                            e.target.value = ''
+                            setNumberLists({ ...numberLists, [materialId]: [parseInt(e.target.value) || 0] })
                           }
                         }}
                         className="w-16 bg-gray-700/30 border border-gray-700 rounded px-2 py-1.5 text-gray-600 text-sm focus:outline-none focus:border-[#b8ff00] focus:text-white"
@@ -159,6 +163,7 @@ export default function FactionsClient() {
   const [activeFactions, setActiveFactions] = useState<Set<string>>(new Set())
   const [editingFactionId, setEditingFactionId] = useState<string | null>(null)
   const [confirmed, setConfirmed] = useState<string | null>(null)
+  const [showTotals, setShowTotals] = useState(false)
 
   useEffect(() => {
     const u = getSavedUser()
@@ -214,14 +219,73 @@ export default function FactionsClient() {
     return { done, total }
   }
 
+  // Calculate totals across all active factions
+  function getTotalStats() {
+    let totalNeed = 0
+    let totalHave = 0
+    let totalRemaining = 0
+
+    const allMaterialIds = new Set<string>()
+    activeFactions.forEach(factionId => {
+      const faction = factions.find(f => f.id === factionId)
+      if (faction) {
+        faction.materials.forEach(({ materialId }) => {
+          allMaterialIds.add(materialId)
+        })
+      }
+    })
+
+    allMaterialIds.forEach(materialId => {
+      const state = getState(materialId)
+      totalNeed += state.need
+      totalHave += state.have
+      totalRemaining += Math.max(0, state.need - state.have)
+    })
+
+    return { totalNeed, totalHave, totalRemaining }
+  }
+
+  const totals = getTotalStats()
+
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-lg font-bold text-white tracking-wide">Factions</h1>
-        <p className="text-xs text-gray-500 mt-1">
-          Set your NEED numbers here. Compare against HAVE in Vault.
-        </p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-lg font-bold text-white tracking-wide">Factions</h1>
+          <p className="text-xs text-gray-500 mt-1">
+            Set your NEED numbers here. Compare against HAVE in Vault.
+          </p>
+        </div>
+        {userId && activeFactions.size > 0 && (
+          <button
+            onClick={() => setShowTotals(!showTotals)}
+            className="text-xs border border-gray-700 text-gray-400 rounded px-3 py-1.5 hover:border-[#b8ff00] hover:text-[#b8ff00] transition-colors shrink-0"
+          >
+            {showTotals ? '▼' : '▶'} Totals
+          </button>
+        )}
       </div>
+
+      {showTotals && activeFactions.size > 0 && (
+        <div className="mb-6 border border-gray-700 rounded-lg p-4 bg-gray-900/30">
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div>
+              <div className="text-xs text-gray-500 mb-1">Total Needs</div>
+              <div className="text-2xl font-bold text-white">{totals.totalNeed}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500 mb-1">Total Have</div>
+              <div className="text-2xl font-bold text-[#b8ff00]">{totals.totalHave}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500 mb-1">Remaining</div>
+              <div className={`text-2xl font-bold ${totals.totalRemaining === 0 ? 'text-green-400' : 'text-white'}`}>
+                {totals.totalRemaining}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {!userId && (
         <div className="text-gray-500 text-sm mb-6">
