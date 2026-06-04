@@ -9,7 +9,7 @@ import { useTracker, getSavedUser } from '@/lib/store'
 
 const FACTION_PRIORITY = ['cyberacme', 'nucaloric', 'traxus', 'mida', 'arachne', 'sekiguchi']
 
-// Simple edit modal
+// Edit modal with progressive number boxes
 function FactionEditModal({
   faction,
   getState,
@@ -21,20 +21,32 @@ function FactionEditModal({
   setNeed: (id: string, need: number) => void
   onClose: () => void
 }) {
-  const [values, setValues] = useState<Record<string, number>>({})
+  const [numberLists, setNumberLists] = useState<Record<string, number[]>>({})
 
   // Initialize from tracker state
   useEffect(() => {
-    const init: Record<string, number> = {}
+    const init: Record<string, number[]> = {}
     faction.materials.forEach(({ materialId }) => {
-      init[materialId] = getState(materialId).need
+      const trackerNeed = getState(materialId).need
+      init[materialId] = trackerNeed > 0 ? [trackerNeed] : [0]
     })
-    setValues(init)
+    setNumberLists(init)
   }, [faction.id, getState])
 
+  function updateNumber(materialId: string, index: number, value: string) {
+    const nums = [...(numberLists[materialId] || [])]
+    nums[index] = parseInt(value) || 0
+    setNumberLists({ ...numberLists, [materialId]: nums })
+  }
+
+  function getTotal(materialId: string): number {
+    return (numberLists[materialId] || []).reduce((sum, n) => sum + n, 0)
+  }
+
   function handleSave() {
-    Object.entries(values).forEach(([materialId, need]) => {
-      setNeed(materialId, need)
+    Object.entries(numberLists).forEach(([materialId, nums]) => {
+      const total = nums.reduce((sum, n) => sum + n, 0)
+      setNeed(materialId, total)
     })
     onClose()
   }
@@ -44,37 +56,63 @@ function FactionEditModal({
       <div className="bg-[#0f1117] border border-gray-700 rounded-lg w-full max-w-2xl max-h-[80vh] flex flex-col">
         <div className="px-5 py-4 border-b border-gray-800">
           <h3 className="text-white font-bold text-lg">{faction.name} — Edit requirements</h3>
-          <p className="text-xs text-gray-500 mt-1">Enter how many of each material you need</p>
+          <p className="text-xs text-gray-500 mt-1">Enter numbers — boxes appear as you fill them</p>
         </div>
 
         <div className="overflow-y-auto flex-1 px-5 py-3">
-          <div className="space-y-3">
+          <div className="space-y-4">
             {faction.materials.map(({ materialId }) => {
               const mat = getMaterialById(materialId)
               if (!mat) return null
-              const need = values[materialId] ?? 0
+              const nums = numberLists[materialId] || [0]
+              const total = getTotal(materialId)
 
               return (
-                <div key={materialId} className="flex items-center gap-3">
-                  {mat.image && (
-                    <Image
-                      src={mat.image}
-                      alt={mat.name}
-                      width={32}
-                      height={32}
-                      className="rounded shrink-0 object-contain"
-                    />
-                  )}
-                  <label className="text-xs text-gray-300 font-medium flex-1 min-w-0">
-                    {mat.name}
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={need}
-                    onChange={e => setValues({ ...values, [materialId]: parseInt(e.target.value) || 0 })}
-                    className="w-20 bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-white text-sm focus:outline-none focus:border-[#b8ff00]"
-                  />
+                <div key={materialId}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {mat.image && (
+                        <Image
+                          src={mat.image}
+                          alt={mat.name}
+                          width={24}
+                          height={24}
+                          className="rounded shrink-0 object-contain"
+                        />
+                      )}
+                      <label className="text-xs text-gray-400 font-medium truncate">{mat.name}</label>
+                    </div>
+                    <div className="text-sm font-bold text-[#b8ff00] shrink-0 ml-2">Total: {total}</div>
+                  </div>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {nums.map((n, idx) => (
+                      <input
+                        key={idx}
+                        type="number"
+                        min={0}
+                        value={n || ''}
+                        onChange={e => updateNumber(materialId, idx, e.target.value)}
+                        placeholder="0"
+                        className="w-16 bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-white text-sm focus:outline-none focus:border-[#b8ff00]"
+                      />
+                    ))}
+                    {(!nums.length || nums[nums.length - 1] > 0) && (
+                      <input
+                        type="number"
+                        min={0}
+                        value=""
+                        placeholder="0"
+                        onChange={e => {
+                          if (e.target.value) {
+                            const newNums = [...nums, parseInt(e.target.value) || 0]
+                            setNumberLists({ ...numberLists, [materialId]: newNums })
+                            e.target.value = ''
+                          }
+                        }}
+                        className="w-16 bg-gray-700/30 border border-gray-700 rounded px-2 py-1.5 text-gray-600 text-sm focus:outline-none focus:border-[#b8ff00] focus:text-white"
+                      />
+                    )}
+                  </div>
                 </div>
               )
             })}
