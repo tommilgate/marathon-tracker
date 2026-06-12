@@ -2,16 +2,29 @@ import Anthropic from '@anthropic-ai/sdk'
 import { NextRequest, NextResponse } from 'next/server'
 import { materials } from '@/lib/materials'
 
-const MATERIAL_LIST = materials.map(m => `${m.id}: "${m.name}"`).join('\n')
-
 export async function POST(req: NextRequest) {
   try {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-    const { imageBase64, mediaType } = await req.json()
+    const { imageBase64, mediaType, order } = await req.json()
+
+    // `order` is the user's locked vault order (array of material ids), reading
+    // left-to-right, top-to-bottom — the same order the in-game vault uses.
+    // We map by POSITION instead of asking the model to recognise each item,
+    // which is far more reliable for visually similar materials.
+    const orderedIds: string[] = Array.isArray(order) && order.length > 0
+      ? order.filter((id: string) => materials.some(m => m.id === id))
+      : materials.map(m => m.id)
+
+    const numberedList = orderedIds
+      .map((id, i) => {
+        const mat = materials.find(m => m.id === id)!
+        return `${i + 1}. ${mat.name}`
+      })
+      .join('\n')
 
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 2048,
+      model: 'claude-opus-4-8',
+      max_tokens: 4096,
       messages: [
         {
           role: 'user',
@@ -26,28 +39,27 @@ export async function POST(req: NextRequest) {
             },
             {
               type: 'text',
-              text: `This is a screenshot of the salvage/stash inventory screen from the game Marathon.
+              text: `This is a screenshot of the salvage/stash inventory grid from the game Marathon.
 
-The inventory is a grid of item cells. Each occupied cell contains:
-- An item image in the centre
+The inventory is a grid of item cells, read LEFT-TO-RIGHT, TOP-TO-BOTTOM. Each occupied cell shows:
+- An item image
 - A small "×N" count label in the BOTTOM-RIGHT corner of the cell (e.g. ×2, ×14, ×35)
-- A coloured price badge in the TOP-LEFT corner (e.g. ◈300, ◈1.0k)
+- A coloured price badge in the TOP-LEFT corner — IGNORE this, it is not the count
+
+The items in this vault appear in a FIXED, KNOWN order. Reading the grid left-to-right then top-to-bottom, the cells correspond to this numbered list (position 1 is the very first/top-left cell):
+
+${numberedList}
+
+Your job: for each numbered position, read the "×N" count in the BOTTOM-RIGHT corner of that cell and report it.
 
 Rules:
-1. ONLY report items where you can clearly read a "×N" count in the bottom-right corner
-2. Do NOT guess or infer — if the count text is unclear, skip that item
-3. Do NOT include items with ×0 or empty cells
-4. The count is ALWAYS in the bottom-right as "×N" — do not read any other numbers
+1. Go strictly in reading order (left-to-right, top-to-bottom). The Nth cell you encounter is position N in the list above.
+2. Read ONLY the "×N" number in the bottom-right corner. Never read the price badge (top-left) or any other number.
+3. If a cell's count is genuinely unreadable, set its count to null (do not guess).
+4. Report every position you can see, even count 1.
 
-Here are the known material names to match against:
-${MATERIAL_LIST}
-
-Match what you see to the closest name in that list. If you cannot confidently match an item, skip it.
-
-If the image does not clearly show a Marathon game inventory screen with readable ×N counts, return an empty array: []
-
-Return ONLY valid JSON — no explanation, no markdown. Format:
-[{"id": "material-id", "count": 5}, ...]`,
+Return ONLY valid JSON — no explanation, no markdown. An array of objects, one per position you read:
+[{"position": 1, "count": 5}, {"position": 2, "count": 12}, ...]`,
             },
           ],
         },
@@ -56,19 +68,20 @@ Return ONLY valid JSON — no explanation, no markdown. Format:
 
     const text = response.content[0].type === 'text' ? response.content[0].text : ''
 
-    // Extract JSON from response
     const jsonMatch = text.match(/\[[\s\S]*\]/)
     if (!jsonMatch) {
       return NextResponse.json({ error: 'Could not parse response', raw: text }, { status: 400 })
     }
 
-    const results = JSON.parse(jsonMatch[0]) as { id: string; count: number }[]
+    const parsed = JSON.parse(jsonMatch[0]) as { position: number; count: number | null }[]
 
-    // Validate IDs against known materials
-    const valid = results.filter(r => materials.find(m => m.id === r.id) && r.count > 0)
+    // Map each position back to the material id at that position in the order.
+    const items = parsed
+      .filter(r => typeof r.position === 'number' && typeof r.count === 'number' && r.count > 0)
+      .map(r => ({ id: orderedIds[r.position - 1], count: r.count as number }))
+      .filter(r => !!r.id)
 
-    // Return even if empty — client can distinguish "found nothing" from "error"
-    return NextResponse.json({ items: valid, total: results.length })
+    return NextResponse.json({ items, total: parsed.length })
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('analyze-vault error:', msg)

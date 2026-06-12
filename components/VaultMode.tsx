@@ -198,7 +198,7 @@ function VaultItem({ material: m, have, isSelected, isEditing, isLocked, onSelec
 // ---------------------------------------------------------------------------
 type ScanResult = { id: string; count: number }
 
-function ScreenshotUploader({ onResults }: { onResults: (r: ScanResult[]) => void }) {
+function ScreenshotUploader({ onResults, order }: { onResults: (r: ScanResult[]) => void; order: string[] }) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'review' | 'error'>('idle')
   const [pending, setPending] = useState<ScanResult[]>([])
   const fileRef = useRef<HTMLInputElement>(null)
@@ -214,7 +214,7 @@ function ScreenshotUploader({ onResults }: { onResults: (r: ScanResult[]) => voi
         const res = await fetch('/api/analyze-vault', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageBase64: base64, mediaType }),
+          body: JSON.stringify({ imageBase64: base64, mediaType, order }),
         })
         const data = await res.json()
         if (!res.ok) { setStatus('error'); return }
@@ -510,7 +510,7 @@ export default function VaultMode({ userId }: VaultModeProps) {
             />
             Hide 0s
           </label>
-          <ScreenshotUploader onResults={results => {
+          <ScreenshotUploader order={order} onResults={results => {
             for (const { id, count } of results) setHave(id, count)
           }} />
         </div>
