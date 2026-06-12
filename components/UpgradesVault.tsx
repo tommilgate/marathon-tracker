@@ -41,7 +41,15 @@ interface UpgradesVaultProps {
 
 interface UndoEntry {
   materialId: string
-  factionId?: string
+  factionId: string
+  quantity: number
+}
+
+interface SpendModalState {
+  materialId: string
+  factions: typeof factions
+  selectedFactionId: string | null
+  quantity: number
 }
 
 export default function UpgradesVault({ userId, selectedFaction }: UpgradesVaultProps) {
@@ -49,7 +57,7 @@ export default function UpgradesVault({ userId, selectedFaction }: UpgradesVault
   const [flash, setFlash] = useState<Record<string, 'success' | 'warn'>>({})
   const [vaultOrder, setVaultOrder] = useState<string[]>([])
   const [scale, setScale] = useState(1)
-  const [factionSelector, setFactionSelector] = useState<{ materialId: string; factions: typeof factions } | null>(null)
+  const [spendModal, setSpendModal] = useState<SpendModalState | null>(null)
   const [activeFactions, setActiveFactions] = useState<Set<string>>(new Set())
   const [undoHistory, setUndoHistory] = useState<UndoEntry[]>([])
   const containerRef = useRef<HTMLDivElement>(null)
@@ -126,37 +134,38 @@ export default function UpgradesVault({ userId, selectedFaction }: UpgradesVault
     const state = getState(materialId)
     if (state.have <= 0) return
 
-    // Check if material is in multiple active factions
-    const factionsWithMaterial = factions.filter(
+    // Find factions that contain this material. Prefer active ones, but
+    // fall back to all factions that need it so a spend can always be
+    // attributed to a faction.
+    const activeWithMaterial = factions.filter(
       f => f.materials.some(m => m.materialId === materialId) && activeFactions.has(f.id)
     )
+    const factionsWithMaterial = activeWithMaterial.length > 0
+      ? activeWithMaterial
+      : factions.filter(f => f.materials.some(m => m.materialId === materialId))
 
-    // Auto-pick first faction for rapid clicking (user can undo if wrong)
-    const factionId = factionsWithMaterial.length > 0 ? factionsWithMaterial[0].id : undefined
+    if (factionsWithMaterial.length === 0) return
 
-    if (factionId) {
-      spendFromFaction(materialId, factionId)
-    } else {
-      // Not in any active faction, just spend normally
-      spend(materialId, 1)
-      showSpendFlash(materialId)
-      setUndoHistory([{ materialId }, ...undoHistory.slice(0, 9)])
-    }
+    setSpendModal({
+      materialId,
+      factions: factionsWithMaterial,
+      selectedFactionId: factionsWithMaterial.length === 1 ? factionsWithMaterial[0].id : null,
+      quantity: 1,
+    })
   }
 
-  function spendFromFaction(materialId: string, factionId: string) {
-    const faction = factions.find(f => f.id === factionId)
-    if (!faction) return
+  function confirmSpend() {
+    if (!spendModal || !spendModal.selectedFactionId) return
+    const { materialId, selectedFactionId } = spendModal
 
-    const material = faction.materials.find(m => m.materialId === materialId)
-    if (!material) return
-
-    // Reduce both have and need
     const state = getState(materialId)
-    setNeed(materialId, Math.max(0, state.need - 1))
-    spend(materialId, 1)
+    const qty = Math.max(1, Math.min(spendModal.quantity, state.have))
+
+    setNeed(materialId, Math.max(0, state.need - qty))
+    spend(materialId, qty)
     showSpendFlash(materialId)
-    setUndoHistory([{ materialId, factionId }, ...undoHistory.slice(0, 9)])
+    setUndoHistory([{ materialId, factionId: selectedFactionId, quantity: qty }, ...undoHistory.slice(0, 9)])
+    setSpendModal(null)
   }
 
   function showSpendFlash(materialId: string) {
@@ -171,22 +180,24 @@ export default function UpgradesVault({ userId, selectedFaction }: UpgradesVault
 
     const state = getState(lastEntry.materialId)
 
-    // Reverse the spend
-    if (lastEntry.factionId) {
-      // Was a faction spend, restore the need
-      const faction = factions.find(f => f.id === lastEntry.factionId)
-      if (faction) {
-        setNeed(lastEntry.materialId, state.need + 1)
-      }
-    }
-
-    // Restore the have count
-    spend(lastEntry.materialId, -1)
+    // Restore the need and the have count for the spent quantity
+    setNeed(lastEntry.materialId, state.need + lastEntry.quantity)
+    spend(lastEntry.materialId, -lastEntry.quantity)
     setFlash(f => ({ ...f, [lastEntry.materialId]: 'warn' }))
   }
 
   useEffect(() => {
     function handleKeydown(e: KeyboardEvent) {
+      if (spendModal) {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          confirmSpend()
+        } else if (e.key === 'Escape') {
+          e.preventDefault()
+          setSpendModal(null)
+        }
+        return
+      }
       if (e.key === 'Delete' && undoHistory.length > 0) {
         e.preventDefault()
         handleUndo()
@@ -194,7 +205,7 @@ export default function UpgradesVault({ userId, selectedFaction }: UpgradesVault
     }
     window.addEventListener('keydown', handleKeydown)
     return () => window.removeEventListener('keydown', handleKeydown)
-  }, [undoHistory])
+  }, [undoHistory, spendModal])
 
   useEffect(() => {
     function handleOutside(e: MouseEvent) {
@@ -208,42 +219,118 @@ export default function UpgradesVault({ userId, selectedFaction }: UpgradesVault
 
   return (
     <div ref={containerRef} className="mb-6">
-      {/* Faction selector modal */}
-      {factionSelector && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-          <div className="bg-[#0f1117] border border-gray-700 rounded-lg w-full max-w-sm">
-            <div className="px-5 py-4 border-b border-gray-800">
-              <h3 className="text-white font-bold">Spend from which faction?</h3>
-              <p className="text-xs text-gray-500 mt-1">This item is in multiple factions</p>
-            </div>
-            <div className="px-5 py-3 space-y-2">
-              {factionSelector.factions.map(faction => (
+      {/* Spend modal — pick faction (required) + quantity */}
+      {spendModal && (() => {
+        const mat = materials.find(m => m.id === spendModal.materialId)
+        const state = getState(spendModal.materialId)
+        const canConfirm = !!spendModal.selectedFactionId && spendModal.quantity >= 1
+        return (
+          <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+            <div className="bg-[#0f1117] border border-gray-700 rounded-lg w-full max-w-sm">
+              <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-3">
+                {mat?.image && (
+                  <Image
+                    src={mat.image}
+                    alt={mat.name}
+                    width={44}
+                    height={44}
+                    className="rounded object-contain"
+                    style={{ border: `3px solid ${TIER_BORDER_COLORS[mat.tier]}` }}
+                  />
+                )}
+                <div>
+                  <h3 className="text-white font-bold">{mat?.name}</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Have {state.have}</p>
+                </div>
+              </div>
+
+              {/* Faction picker */}
+              <div className="px-5 py-3">
+                <div className="text-xs text-gray-400 uppercase tracking-wide mb-2">Spend from faction</div>
+                <div className="space-y-2">
+                  {spendModal.factions.map(faction => {
+                    const selected = spendModal.selectedFactionId === faction.id
+                    return (
+                      <button
+                        key={faction.id}
+                        onClick={() => setSpendModal(s => s && { ...s, selectedFactionId: faction.id })}
+                        className={`w-full text-left px-4 py-2 rounded border transition-all ${
+                          faction.bgColor
+                        } ${faction.color} ${
+                          selected ? 'border-current ring-2 ring-[#b8ff00]' : faction.borderColor + ' opacity-70 hover:opacity-100'
+                        }`}
+                      >
+                        {faction.name}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Quantity */}
+              <div className="px-5 py-3 border-t border-gray-800">
+                <div className="text-xs text-gray-400 uppercase tracking-wide mb-2">Quantity</div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSpendModal(s => s && { ...s, quantity: Math.max(1, s.quantity - 1) })}
+                    className="w-10 h-10 border border-gray-700 text-gray-300 rounded hover:border-gray-500 text-lg"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min={1}
+                    max={state.have}
+                    value={spendModal.quantity}
+                    onChange={e => {
+                      const v = parseInt(e.target.value, 10)
+                      setSpendModal(s => s && { ...s, quantity: isNaN(v) ? 1 : Math.max(1, Math.min(v, state.have)) })
+                    }}
+                    autoFocus
+                    className="flex-1 text-center bg-[#161c27] border border-gray-700 rounded h-10 text-white font-bold"
+                  />
+                  <button
+                    onClick={() => setSpendModal(s => s && { ...s, quantity: Math.min(state.have, s.quantity + 1) })}
+                    className="w-10 h-10 border border-gray-700 text-gray-300 rounded hover:border-gray-500 text-lg"
+                  >
+                    +
+                  </button>
+                  <button
+                    onClick={() => setSpendModal(s => s && { ...s, quantity: state.have })}
+                    className="px-3 h-10 text-xs border border-gray-700 text-gray-400 rounded hover:border-gray-500 shrink-0"
+                  >
+                    Max
+                  </button>
+                </div>
+              </div>
+
+              <div className="px-5 py-4 border-t border-gray-800 flex gap-2">
                 <button
-                  key={faction.id}
-                  onClick={() => spendFromFaction(factionSelector.materialId, faction.id)}
-                  className={`w-full text-left px-4 py-2 rounded border transition-colors ${
-                    faction.bgColor
-                  } ${faction.borderColor} ${faction.color} hover:opacity-80`}
+                  onClick={() => setSpendModal(null)}
+                  className="flex-1 px-4 py-2 text-sm border border-gray-700 text-gray-400 rounded hover:border-gray-500 transition-colors"
                 >
-                  {faction.name}
+                  Cancel
                 </button>
-              ))}
-            </div>
-            <div className="px-5 py-4 border-t border-gray-800">
-              <button
-                onClick={() => setFactionSelector(null)}
-                className="w-full px-4 py-2 text-sm border border-gray-700 text-gray-400 rounded hover:border-gray-500 transition-colors"
-              >
-                Cancel
-              </button>
+                <button
+                  onClick={confirmSpend}
+                  disabled={!canConfirm}
+                  className={`flex-1 px-4 py-2 text-sm font-bold rounded transition-colors ${
+                    canConfirm
+                      ? 'bg-[#b8ff00] text-black hover:opacity-90'
+                      : 'bg-gray-800 text-gray-600 cursor-not-allowed'
+                  }`}
+                >
+                  Spend {spendModal.quantity}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       <div className="mb-3 flex items-center justify-between">
         <p className="text-xs text-gray-500">
-          Click an item to spend 1 — reduces both Have and Remaining
+          Click an item → pick faction + quantity to spend. Delete undoes the last spend.
         </p>
         {/* Zoom slider */}
         <div className="flex items-center gap-2">
