@@ -55,8 +55,9 @@ Your job: for each numbered position, read the "×N" count in the BOTTOM-RIGHT c
 Rules:
 1. Go strictly in reading order (left-to-right, top-to-bottom). The Nth cell you encounter is position N in the list above.
 2. Read ONLY the "×N" number in the bottom-right corner. Never read the price badge (top-left) or any other number.
-3. If a cell's count is genuinely unreadable, set its count to null (do not guess).
-4. Report every position you can see, even count 1.
+3. IMPORTANT: If a cell contains an item image but has NO "×N" count label at all, that means the count is exactly 1. Report count: 1 for those cells.
+4. Only set count to null if the cell is genuinely empty (no item image) or the number is present but unreadable.
+5. Report every occupied position you can see, including count 1.
 
 Return ONLY valid JSON — no explanation, no markdown. An array of objects, one per position you read:
 [{"position": 1, "count": 5}, {"position": 2, "count": 12}, ...]`,
