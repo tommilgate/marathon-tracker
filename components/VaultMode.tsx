@@ -229,6 +229,28 @@ function ScreenshotUploader({ onResults, order }: { onResults: (r: ScanResult[])
     reader.readAsDataURL(file)
   }
 
+  // Allow pasting a screenshot from the clipboard (Cmd/Ctrl+V)
+  useEffect(() => {
+    function handlePaste(e: ClipboardEvent) {
+      if (status === 'loading') return
+      const items = e.clipboardData?.items
+      if (!items) return
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile()
+          if (file) {
+            e.preventDefault()
+            handleFile(file)
+            return
+          }
+        }
+      }
+    }
+    window.addEventListener('paste', handlePaste)
+    return () => window.removeEventListener('paste', handlePaste)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, order])
+
   function updateCount(id: string, val: number) {
     setPending(p => p.map(x => x.id === id ? { ...x, count: Math.max(0, val) } : x))
   }
@@ -298,8 +320,10 @@ function ScreenshotUploader({ onResults, order }: { onResults: (r: ScanResult[])
       >
         {status === 'loading' ? '⏳ Scanning...' : '📷 Scan screenshot'}
       </button>
-      {status === 'error' && (
+      {status === 'error' ? (
         <span className="text-xs text-red-400 shrink-0">Couldn't read screenshot</span>
+      ) : status === 'idle' && (
+        <span className="text-xs text-gray-600 shrink-0">or paste with ⌘V</span>
       )}
     </div>
   )
